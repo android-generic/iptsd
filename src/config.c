@@ -9,7 +9,11 @@
 #include <strings.h>
 #include <sys/stat.h>
 
+#ifdef __ANDROID__
+#include <android_configure.h>
+#else
 #include <configure.h>
+#endif
 
 #include "config.h"
 #include "ipts.h"
