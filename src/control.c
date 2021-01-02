@@ -130,8 +130,12 @@ int iptsd_control_start(struct iptsd_control *control)
 	char name[32];
 
 	for (int i = 0; i < IPTS_BUFFERS; i++) {
-		snprintf(name, sizeof(name), "/dev/ipts/%d", i);
-
+		#ifdef __ANDROID__
+			snprintf(name, sizeof(name), "/dev/ipts!%d", i);
+		#else
+			snprintf(name, sizeof(name), "/dev/ipts/%d", i);
+		#endif
+		
 		int ret = iptsd_utils_open(name, O_RDONLY);
 		if (ret >= 0) {
 			control->files[i] = ret;
