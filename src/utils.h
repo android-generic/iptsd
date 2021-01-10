@@ -14,9 +14,10 @@ int iptsd_utils_close(int fd);
 int iptsd_utils_read(int fd, void *buf, size_t count);
 int iptsd_utils_write(int fd, void *buf, size_t count);
 int iptsd_utils_ioctl(int fd, unsigned long request, void *data);
+int iptsd_utils_signal(int signum, void (*handler)(int));
 void iptsd_utils_err(int err, const char *file,
 	int line, const char *format, ...);
-uint64_t iptsd_utils_msec_timestamp(void);
+int iptsd_utils_msec_timestamp(uint64_t *ts);
 
 #endif /* _IPTSD_SYSCALL_H_ */
 

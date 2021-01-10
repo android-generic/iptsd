@@ -16,7 +16,8 @@
 #include "reader.h"
 #include "utils.h"
 
-struct iptsd_context iptsd;
+bool should_exit;
+bool should_reset;
 
 static int iptsd_exit(struct iptsd_context *iptsd, int error)
 {
@@ -30,11 +31,14 @@ static int iptsd_exit(struct iptsd_context *iptsd, int error)
 	return error;
 }
 
-static void iptsd_signal(int sig)
+static void iptsd_signal_exit(int sig)
 {
-	iptsd_exit(&iptsd, sig);
+	should_exit = true;
+}
 
-	exit(EXIT_FAILURE);
+static void iptsd_signal_reset(int sig)
+{
+	should_reset = true;
 }
 
 static int iptsd_loop(struct iptsd_context *iptsd)
@@ -74,11 +78,31 @@ static int iptsd_loop(struct iptsd_context *iptsd)
 
 int main(void)
 {
-	memset(&iptsd, 0, sizeof(struct iptsd_context));
-	signal(SIGINT, iptsd_signal);
-	signal(SIGTERM, iptsd_signal);
+	struct iptsd_context iptsd;
 
-	int ret = iptsd_control_start(&iptsd.control);
+	memset(&iptsd, 0, sizeof(struct iptsd_context));
+	should_exit = false;
+	should_reset = false;
+
+	int ret = iptsd_utils_signal(SIGINT, iptsd_signal_exit);
+	if (ret < 0) {
+		iptsd_err(ret, "Failed to register signal handler");
+		return ret;
+	}
+
+	ret = iptsd_utils_signal(SIGTERM, iptsd_signal_exit);
+	if (ret < 0) {
+		iptsd_err(ret, "Failed to register signal handler");
+		return ret;
+	}
+
+	ret = iptsd_utils_signal(SIGUSR1, iptsd_signal_reset);
+	if (ret < 0) {
+		iptsd_err(ret, "Failed to register signal handler");
+		return ret;
+	}
+
+	ret = iptsd_control_start(&iptsd.control);
 	if (ret < 0) {
 		iptsd_err(ret, "Failed to start IPTS");
 		return ret;
@@ -109,7 +133,6 @@ int main(void)
 
 	while (1) {
 		ret = iptsd_loop(&iptsd);
-
 		if (ret < 0) {
 			iptsd_err(ret, "IPTSD loop failed");
 			return iptsd_exit(&iptsd, ret);
@@ -122,6 +145,17 @@ int main(void)
 			usleep(10 * 1000);
 		else
 			usleep(200 * 1000);
+
+		if (should_exit)
+			return iptsd_exit(&iptsd, EXIT_FAILURE);
+
+		if (should_reset) {
+			ret = iptsd_control_reset(&iptsd.control);
+			if (ret < 0)
+				return iptsd_exit(&iptsd, ret);
+
+			should_reset = false;
+		}
 	}
 
 	return iptsd_exit(&iptsd, 0);

@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -58,6 +59,20 @@ int iptsd_utils_ioctl(int fd, unsigned long request, void *data)
 	return -errno;
 }
 
+int iptsd_utils_signal(int signum, void (*handler)(int))
+{
+	struct sigaction sig;
+
+	memset(&sig, 0, sizeof(struct sigaction));
+	sig.sa_handler = handler;
+
+	int ret = sigaction(signum, &sig, NULL);
+	if (ret != -1)
+		return ret;
+
+	return -errno;
+}
+
 void iptsd_utils_err(int err, const char *file,
 		int line, const char *format, ...)
 {
@@ -71,10 +86,18 @@ void iptsd_utils_err(int err, const char *file,
 	va_end(args);
 }
 
-uint64_t iptsd_utils_msec_timestamp(void)
+int iptsd_utils_msec_timestamp(uint64_t *ts)
 {
-	static struct timespec t;
-	clock_gettime(CLOCK_MONOTONIC, &t);
-	return (uint64_t)t.tv_sec * 1000 + t.tv_nsec / 1000000;
+	struct timespec t;
+
+	if (!ts)
+		return -EINVAL;
+
+	int ret = clock_gettime(CLOCK_MONOTONIC, &t);
+	if (ret == -1)
+		return -errno;
+
+	*ts = (uint64_t)t.tv_sec * 1000 + t.tv_nsec / 1000000;
+	return 0;
 }
 
