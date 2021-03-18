@@ -1,20 +1,19 @@
 %global debug_package %{nil}
 
 Name: iptsd
-Version: 0.3.1
+Version: 0.4
 Release: 1%{?dist}
 Summary: Userspace daemon for Intel Precise Touch & Stylus
 License: GPLv2+
 
 URL: https://github.com/linux-surface/iptsd
-Source: {{{ git_dir_pack }}}
+Source: {{{ git_dir_pack dir_name="iptsd" source_name="iptsd.tar.gz"  }}}
 
 BuildRequires: meson
 BuildRequires: gcc
-BuildRequires: inih-devel
+BuildRequires: pkgconfig(inih)
+BuildRequires: pkgconfig(systemd)
 BuildRequires: systemd-rpm-macros
-
-Requires: inih
 
 %description
 iptsd is a userspace daemon that processes touch events from the IPTS
@@ -48,6 +47,7 @@ kernel driver, and sends them back to the kernel using uinput devices.
 %config(noreplace) %{_sysconfdir}/ipts.conf
 %{_bindir}/%{name}
 %{_bindir}/ipts-dbg
+%{_bindir}/iptsd-reset-sensor
 %{_unitdir}/%{name}.service
 %{_udevrulesdir}/50-ipts.rules
 %{_datadir}/ipts/*

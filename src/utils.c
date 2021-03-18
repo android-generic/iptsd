@@ -4,8 +4,8 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -73,8 +73,7 @@ int iptsd_utils_signal(int signum, void (*handler)(int))
 	return -errno;
 }
 
-void iptsd_utils_err(int err, const char *file,
-		int line, const char *format, ...)
+void iptsd_utils_err(int err, const char *file, int line, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
@@ -101,3 +100,16 @@ int iptsd_utils_msec_timestamp(uint64_t *ts)
 	return 0;
 }
 
+int iptsd_utils_msleep(uint64_t msecs)
+{
+	struct timespec t;
+
+	t.tv_sec = msecs / 1000;
+	t.tv_nsec = (msecs - (t.tv_sec * 1000)) * 1000000;
+
+	int ret = nanosleep(&t, NULL);
+	if (ret != -1)
+		return ret;
+
+	return -errno;
+}
