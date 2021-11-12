@@ -82,7 +82,9 @@ int main(void)
 	memset(&iptsd, 0, sizeof(struct iptsd_context));
 	should_exit = false;
 	should_reset = false;
-
+	
+	printf("Running Surface Pro 4 patch for iptsd.\n");
+	
 	int ret = iptsd_utils_signal(SIGINT, iptsd_signal_exit);
 	if (ret < 0) {
 		iptsd_err(ret, "Failed to register signal handler");

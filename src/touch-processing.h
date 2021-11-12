@@ -31,6 +31,7 @@ struct iptsd_touch_input {
 struct iptsd_touch_processor {
 	struct heatmap hm;
 	struct contact *contacts;
+	struct contact *lastContacts; /* stores contacts from the last frame */
 	struct iptsd_touch_input *inputs;
 	struct iptsd_touch_input *last;
 	struct cone rejection_cones[IPTSD_MAX_STYLI];
@@ -38,6 +39,7 @@ struct iptsd_touch_processor {
 	bool *free_indices;
 	double *distances;
 	int *indices;
+	int lastCount; /* stores the number of touch points in the last frame (count) */
 
 	struct iptsd_config config;
 	struct ipts_device_info device_info;
@@ -45,6 +47,13 @@ struct iptsd_touch_processor {
 
 double iptsd_touch_processing_dist(struct iptsd_touch_input input, struct iptsd_touch_input other);
 void iptsd_touch_processing_inputs(struct iptsd_touch_processor *tp, struct heatmap *hm);
+
+/* Loads the points from the last frame into the current frame */
+void iptsd_touch_processing_restore_points(struct iptsd_touch_processor *tp, int *count);
+
+/* Saves off the points from the current frame so they can be restored if needed */
+void iptsd_touch_processing_backup_points(struct iptsd_touch_processor *tp, int count);
+
 struct heatmap *iptsd_touch_processing_get_heatmap(struct iptsd_touch_processor *tp, int w, int h);
 int iptsd_touch_processing_init(struct iptsd_touch_processor *tp);
 void iptsd_touch_processing_free(struct iptsd_touch_processor *tp);

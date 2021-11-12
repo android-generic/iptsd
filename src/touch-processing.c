@@ -134,7 +134,17 @@ void iptsd_touch_processing_inputs(struct iptsd_touch_processor *tp, struct heat
 	}
 
 	int count = contacts_get(hm, tp->contacts, tp->device_info.max_contacts);
-
+	
+	/* If the average is less than a preset value, then the screen 
+	 * is not sending us valid data and we must throw it out and restore
+	 * from the previous frame to avoid issues.
+	 * Otherwise, we backup the current frame so it can be restored later if needed.
+	 */
+	if(average < 15)
+		iptsd_touch_processing_restore_points(tp, &count);
+	else
+		iptsd_touch_processing_backup_points(tp, count);
+	
 	for (int i = 0; i < count; i++) {
 		float x = tp->contacts[i].x / (hm->width - 1);
 		float y = tp->contacts[i].y / (hm->height - 1);
@@ -184,6 +194,24 @@ void iptsd_touch_processing_inputs(struct iptsd_touch_processor *tp, struct heat
 	iptsd_touch_processing_save(tp);
 }
 
+void iptsd_touch_processing_restore_points(struct iptsd_touch_processor *tp, int *count){
+	/* Restore last contact points */
+	for(int i = 0; i < tp->lastCount; ++i)
+		tp->contacts[i] = tp->lastContacts[i];
+	
+	/* Restore the last contact points count */
+	*count = tp->lastCount;
+}
+
+void iptsd_touch_processing_backup_points(struct iptsd_touch_processor *tp, int count){
+	/* Backup the count so we restore the correct number of points */
+	tp->lastCount = count;
+	
+	/* Backup the contact points */
+	for (int i = 0; i < count; i++)
+		tp->lastContacts[i] = tp->contacts[i];
+}
+
 struct heatmap *iptsd_touch_processing_get_heatmap(struct iptsd_touch_processor *tp, int w, int h)
 {
 	if (tp->hm.width == w && tp->hm.height == h)
@@ -226,6 +254,10 @@ int iptsd_touch_processing_init(struct iptsd_touch_processor *tp)
 	if (!tp->indices)
 		return -ENOMEM;
 
+	tp->lastContacts = calloc(max_contacts, sizeof(struct contact));
+	if (!tp->lastContacts)
+		return -ENOMEM;
+
 	for (int i = 0; i < max_contacts; i++) {
 		iptsd_touch_processing_reset(&tp->last[i]);
 		tp->last[i].slot = i;
@@ -256,6 +288,9 @@ void iptsd_touch_processing_free(struct iptsd_touch_processor *tp)
 
 	if (tp->indices)
 		free(tp->indices);
+
+	if (tp->lastContacts)
+		free(tp->lastContacts);
 
 	heatmap_free(&tp->hm);
 }
