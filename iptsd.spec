@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name: iptsd
-Version: 0.4
+Version: 0.5.1
 Release: 1%{?dist}
 Summary: Userspace daemon for Intel Precise Touch & Stylus
 License: GPLv2+
@@ -20,7 +20,7 @@ iptsd is a userspace daemon that processes touch events from the IPTS
 kernel driver, and sends them back to the kernel using uinput devices.
 
 %prep
-{{{ git_dir_setup_macro }}}
+{{{ git_dir_setup_macro dir_name="iptsd" }}}
 
 %build
 %meson
