@@ -40,6 +40,7 @@ LOCAL_SRC_FILES := 	 src/cone.c  \
 	src/utils.c
 LOCAL_MODULE := iptsd_sp4
 LOCAL_SHARED_LIBRARIES := libinih
+LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_EXECUTABLE)
 
 #build iptsd-dbg-sp4
@@ -64,4 +65,5 @@ LOCAL_SRC_FILES := debug/debug.c \
 	src/control.c  \
 	src/utils.c
 LOCAL_MODULE := ipts-dbg-sp4
+LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_EXECUTABLE)
