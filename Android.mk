@@ -1,7 +1,7 @@
 LOCAL_PATH:= $(call my-dir)
 
 
-#build iptsd
+#build iptsd, with Surface Pro 4 fixes
 include $(CLEAR_VARS)
 INIH_INCLUDE := $(LOCAL_PATH)/../inih
 LOCAL_CFLAGS := -Wundef \
@@ -38,11 +38,11 @@ LOCAL_SRC_FILES := 	 src/cone.c  \
 	src/touch.c  \
 	src/touch-processing.c  \
 	src/utils.c
-LOCAL_MODULE := iptsd
+LOCAL_MODULE := iptsd_sp4
 LOCAL_SHARED_LIBRARIES := libinih
 include $(BUILD_EXECUTABLE)
 
-#build iptsd-dbg
+#build iptsd-dbg-sp4
 include $(CLEAR_VARS)
 LOCAL_CFLAGS := -Wundef \
 	-Wuninitialized \
@@ -63,5 +63,5 @@ LOCAL_C_INCLUDES:= $(LOCAL_PATH)
 LOCAL_SRC_FILES := debug/debug.c \
 	src/control.c  \
 	src/utils.c
-LOCAL_MODULE := ipts-dbg
+LOCAL_MODULE := ipts-dbg-sp4
 include $(BUILD_EXECUTABLE)
