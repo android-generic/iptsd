@@ -140,7 +140,7 @@ void iptsd_touch_processing_inputs(struct iptsd_touch_processor *tp, struct heat
 	 * from the previous frame to avoid issues.
 	 * Otherwise, we backup the current frame so it can be restored later if needed.
 	 */
-	if(average < 15)
+	if(average < 30)
 		iptsd_touch_processing_restore_points(tp, &count);
 	else
 		iptsd_touch_processing_backup_points(tp, count);
