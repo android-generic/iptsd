@@ -2,16 +2,32 @@ pkgname=iptsd
 pkgver=0.5.1
 pkgrel=1
 pkgdesc='Userspace daemon for Intel Precise Touch & Stylus'
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 url='https://github.com/linux-surface/iptsd'
 license=('GPL')
-depends=('libinih')
-makedepends=('meson')
+depends=(
+	'libfmt.so'
+	'libinih'
+	'libspdlog.so'
+	'cairomm'
+	'sdl2'
+)
+makedepends=(
+	'meson'
+	'gcc'
+	'cmake'
+	'microsoft-gsl'
+	'systemd'
+	'udev'
+)
 
 build() {
 	cd $startdir
 
-	arch-meson . build
+	export CFLAGS="$(echo "$CFLAGS" | sed 's|-O2||g' | sed 's|-mtune=generic||g' | sed 's|-march=x86_64||g')"
+	export CXXFLAGS="$(echo "$CXXFLAGS" | sed 's|-O2||g' | sed 's|-mtune=generic||g' | sed 's|-march=x86_64||g')"
+
+	arch-meson build --wrap-mode=default --force-fallback-for=hidrd_usage,hidrd_item,cli11 --buildtype=release
 	meson compile -C build
 }
 
@@ -24,5 +40,5 @@ check() {
 package() {
 	cd $startdir
 
-	DESTDIR="$pkgdir" meson install -C build
+	DESTDIR="$pkgdir" meson install -C build --skip-subprojects
 }
