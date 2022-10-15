@@ -15,10 +15,14 @@ LOCAL_CPPFLAGS := \
 LOCAL_SRC_FILES := $(call all-cpp-files-under, src/config)
 LOCAL_SRC_FILES += $(call all-cpp-files-under, src/contacts)
 LOCAL_SRC_FILES += $(call all-cpp-files-under, src/daemon)
+LOCAL_SRC_FILES += $(call all-cpp-files-under, src/hid)
+LOCAL_SRC_FILES += $(call all-c-files-under, src/hid/shim)
+LOCAL_SRC_FILES += $(call all-cpp-files-under, src/ipts)
 
 LOCAL_MODULE := iptsd
 LOCAL_MODULE_TAGS := optional
-LOCAL_SHARED_LIBRARIES := libinih
+LOCAL_SHARED_LIBRARIES := libinih libc++fs
+LOCAL_STATIC_LIBRARIES := libhidrd_usage libhidrd_item
 LOCAL_HEADER_LIBRARIES := inih_headers spdlog_headers cli11 microsoft-gsl libbase_headers hidrd_headers
 LOCAL_C_INCLUDES:= $(LOCAL_PATH)/src
 LOCAL_PROPRIETARY_MODULE := true
