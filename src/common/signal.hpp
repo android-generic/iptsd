@@ -55,8 +55,12 @@ template <int s> template <class F> auto SignalStub<s>::setup(F &&callback)
 	}
 
 	// replace seat; this will unregister any old handler
+	#ifndef __ANDROID__
 	s_seat.m_handler = std::function {std::forward<F>(callback)};
-
+	#else
+	s_seat.m_handler = std::function<void(int)> {std::forward<F>(callback)};
+	#endif
+	
 	// register new handler
 	int ret = sigaction(s, &sig, nullptr);
 	if (ret == -1) {
