@@ -9,7 +9,9 @@
 #include <ipts/parser.hpp>
 
 #include <CLI/CLI.hpp>
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <filesystem>
 #include <gsl/gsl>
 #include <iostream>
@@ -37,22 +39,36 @@ static void iptsd_calibrate_handle_input(const config::Config &config,
 		return 1.0f - val;
 	});
 
-	// Search for a contact
-	const contacts::Contact &contact = finder.search()[0];
+	// Search contacts
+	const std::vector<contacts::Contact> &contacts = finder.search();
 
-	// If there was no contact, return
-	if (!contact.active)
+	// Calculate size and aspect of all stable contacts
+	for (const auto &contact : contacts) {
+		if (!contact.active || !contact.stable)
+			continue;
+
+		size.push_back(contact.major * std::hypot(config.width, config.height));
+		aspect.push_back(contact.major / contact.minor);
+	}
+
+	if (size.size() == 0)
 		return;
 
-	// Calculate size and aspect
-	size.push_back(contact.major * std::hypot(config.width, config.height));
-	aspect.push_back(contact.major / contact.minor);
+	std::sort(size.begin(), size.end());
+	std::sort(aspect.begin(), aspect.end());
 
 	f64 size_avg = container::ops::sum(size) / static_cast<f64>(size.size());
-	auto [size_min, size_max] = container::ops::minmax(size);
-
 	f64 aspect_avg = container::ops::sum(aspect) / static_cast<f64>(aspect.size());
-	auto [aspect_min, aspect_max] = container::ops::minmax(aspect);
+
+	// Determine 1st and 99th percentile
+	f64 min_idx = std::max(gsl::narrow<f64>(size.size()) - 1, 0.0) * 0.01;
+	f64 max_idx = std::max(gsl::narrow<f64>(size.size()) - 1, 0.0) * 0.99;
+
+	f64 size_min = size[gsl::narrow<std::size_t>(std::round(min_idx))];
+	f64 size_max = size[gsl::narrow<std::size_t>(std::round(max_idx))];
+
+	f64 aspect_min = aspect[gsl::narrow<std::size_t>(std::round(min_idx))];
+	f64 aspect_max = aspect[gsl::narrow<std::size_t>(std::round(max_idx))];
 
 	// Reset console output
 	std::cout << "\033[A"; // Move cursor up one line
@@ -97,10 +113,7 @@ static int main(gsl::span<char *> args)
 	spdlog::info("Size:    0.000 (Min: 0.000; Max: 0.000)");
 	spdlog::info("Aspect:  0.000 (Min: 0.000; Max: 0.000)");
 
-	contacts::Config cfg = config.contacts();
-	cfg.max_contacts = 1;
-
-	contacts::ContactFinder finder {cfg};
+	contacts::ContactFinder finder {config.contacts()};
 
 	ipts::Parser parser {};
 	parser.on_heatmap = [&](const auto &data) {
@@ -111,10 +124,19 @@ static int main(gsl::span<char *> args)
 	std::size_t buffer_size = device.buffer_size();
 	std::vector<u8> buffer(buffer_size);
 
+	// Count errors, if we receive 50 continuous errors, chances are pretty good that
+	// something is broken beyond repair and the program should exit.
+	i32 errors = 0;
+
 	// Enable multitouch mode
 	device.set_mode(true);
 
 	while (!should_exit) {
+		if (errors >= 50) {
+			spdlog::error("Encountered 50 continuous errors, aborting...");
+			break;
+		}
+
 		try {
 			ssize_t size = device.read(buffer);
 
@@ -125,8 +147,12 @@ static int main(gsl::span<char *> args)
 			parser.parse(gsl::span<u8>(buffer.data(), size));
 		} catch (std::exception &e) {
 			spdlog::warn(e.what());
+			errors++;
 			continue;
 		}
+
+		// Reset error count
+		errors = 0;
 	}
 
 	spdlog::info("Stopping");

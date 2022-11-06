@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <tuple>
+#include <vector>
 
 namespace iptsd::contacts {
 
@@ -22,7 +23,7 @@ struct Contact {
 	f64 minor = 0;
 
 	u32 index = 0;
-	bool palm = false;
+	bool valid = true;
 	bool stable = false;
 	bool active = false;
 };
@@ -34,6 +35,7 @@ enum BlobDetection {
 
 struct Config {
 	u32 max_contacts;
+	u32 temporal_window;
 
 	f32 width;
 	f32 height;
@@ -43,13 +45,14 @@ struct Config {
 
 	enum BlobDetection mode;
 
-	f32 finger_size;
-	f32 thumb_size;
-	f32 thumb_aspect;
-	f32 palm_aspect;
+	f32 aspect_min;
+	f32 aspect_max;
+	f32 size_min;
+	f32 size_max;
 
 	f32 size_thresh;
-	f32 position_thresh;
+	f32 position_thresh_min;
+	f32 position_thresh_max;
 	f32 dist_thresh;
 };
 
@@ -60,8 +63,7 @@ private:
 	index2_t size {};
 	std::unique_ptr<IBlobDetector> detector = nullptr;
 
-	std::vector<Contact> contacts {};
-	std::vector<Contact> last {};
+	std::vector<std::vector<Contact>> frames {};
 	std::vector<f64> distances {};
 
 	f64 data_diag = 0;
@@ -76,7 +78,7 @@ public:
 	void resize(index2_t size);
 
 private:
-	bool check_palm(const Contact &contact);
+	bool check_valid(const Contact &contact);
 	bool check_dist(const Contact &from, const Contact &to);
 
 	void track();

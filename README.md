@@ -15,7 +15,7 @@ At the moment, only systemd based distributions are properly supported. The daem
 
 IPTSD is included in the linux-surface repository. This is the recommended way of installing it.
 
-If you want to try out changes that are not yet released, GitHub Actions builds Arch Linux, Debian and Fedora packages for every commit. Go to https://github.com/linux-surface/iptsd/actions, select the last successful build and download the artifact named `<your distro>-latest`.
+If you want to try out changes that are not yet released, GitHub Actions builds Arch Linux, Debian and Fedora packages for every commit. You'll need to be signed-in to Github, then go to https://github.com/linux-surface/iptsd/actions, select the latest successful workflow and download the artifact named `<your distro>-latest`.
 
 ### Building
 
@@ -48,7 +48,7 @@ $ ninja -C build
 To run iptsd, you need to determine the ID of the hidraw device of your touchscreen:
 
 ```bash
-$ sudo dmesg | grep hidraw
+$ sudo ./etc/iptsd-find-hidraw
 ```
 
 You can then run iptsd with the device path as a launch argument:
