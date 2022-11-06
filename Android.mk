@@ -25,8 +25,21 @@ LOCAL_SHARED_LIBRARIES := libinih libc++fs
 LOCAL_STATIC_LIBRARIES := libhidrd_usage libhidrd_item
 LOCAL_HEADER_LIBRARIES := inih_headers spdlog_headers cli11 microsoft-gsl libbase_headers hidrd_headers
 LOCAL_C_INCLUDES:= $(LOCAL_PATH)/src
+LOCAL_POST_INSTALL_CMD := (hide) mkdir -p $(TARGET_OUT_VENDOR)/etc/ipts; \
+						  rsync -av -l $(LOCAL_PATH)/etc/config/ipts.conf $(TARGET_OUT_VENDOR)/etc/ipts; \
+						  rsync -av -l $(LOCAL_PATH)/etc/config/* $(TARGET_OUT_VENDOR)/etc/ipts
 LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_EXECUTABLE)
+
+#copy iptsd-find-hidraw
+include $(CLEAR_VARS)
+LOCAL_MODULE := iptsd-find-hidraw
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_SRC_FILES := $(LOCAL_PATH)/etc/iptsd-find-hidraw
+
+include $(BUILD_PREBUILT)
 
 #build iptsd-dbg
 #include $(CLEAR_VARS)
