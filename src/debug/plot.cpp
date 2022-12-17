@@ -77,11 +77,39 @@ static int main(gsl::span<char *> args)
 	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
 	ifs.read(reinterpret_cast<char *>(&header), sizeof(header));
 
+	char has_meta = 0;
+	ifs.read(&has_meta, sizeof(has_meta));
+
+	// Read metadata
+	std::optional<ipts::Metadata> meta = std::nullopt;
+	if (has_meta) {
+		ipts::Metadata m {};
+
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+		ifs.read(reinterpret_cast<char *>(&m), sizeof(m));
+
+		meta = m;
+	}
+
 	spdlog::info("Vendor:       {:04X}", header.vendor);
 	spdlog::info("Product:      {:04X}", header.product);
 	spdlog::info("Buffer Size:  {}", header.buffer_size);
 
-	config::Config config {header.vendor, header.product};
+	if (meta.has_value()) {
+		const auto &m = meta;
+		auto &t = m->transform;
+		auto &u = m->unknown.unknown;
+
+		spdlog::info("Metadata:");
+		spdlog::info("rows={}, columns={}", m->size.rows, m->size.columns);
+		spdlog::info("width={}, height={}", m->size.width, m->size.height);
+		spdlog::info("transform=[{},{},{},{},{},{}]", t.xx, t.yx, t.tx, t.xy, t.yy, t.ty);
+		spdlog::info("unknown={}, [{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}]",
+			     m->unknown_byte, u[0], u[1], u[2], u[3], u[4], u[5], u[6], u[7], u[8],
+			     u[9], u[10], u[11], u[12], u[13], u[14], u[15]);
+	}
+
+	config::Config config {header.vendor, header.product, meta};
 
 	// Check if a config was found
 	if (config.width == 0 || config.height == 0)

@@ -8,6 +8,7 @@
 #include <common/types.hpp>
 
 #include <bitset>
+#include <cstddef>
 #include <cstring>
 #include <gsl/gsl>
 #include <memory>
@@ -22,11 +23,16 @@ void Heatmap::resize(u16 size)
 		this->data.resize(size);
 }
 
-void Parser::parse(const gsl::span<u8> data)
+void Parser::parse_with_header(const gsl::span<u8> data, std::size_t header)
 {
 	Reader reader(data);
-	reader.skip(sizeof(struct ipts_header));
+	reader.skip(header);
 
+	this->parse_frame(reader);
+}
+
+void Parser::parse_frame(Reader reader)
+{
 	const auto header = reader.read<struct ipts_hid_frame>();
 	Reader sub = reader.sub(header.size - sizeof(header));
 
@@ -69,10 +75,35 @@ void Parser::parse_hid(Reader reader)
 			this->parse_heatmap_frame(sub);
 			break;
 		case IPTS_HID_FRAME_TYPE_REPORTS:
+			// On SP7 we receive the following data about once per second:
+			// 16 00 00 00 00 00 00
+			//   0b 00 00 00 00 ff 00
+			//     74 00 04 00 00 00 00 00
+			// This causes a parse error, because the "0b" should be "0f".
+			// So let's just ignore these packets:
+			if (reader.size() == 4)
+				return;
+
 			this->parse_reports(sub);
+			break;
+		case IPTS_HID_FRAME_TYPE_METADATA:
+			this->parse_metadata(sub);
 			break;
 		}
 	}
+}
+
+void Parser::parse_metadata(Reader reader)
+{
+	Metadata m;
+
+	m.size = reader.read<struct ipts_touch_metadata_size>();
+	m.unknown_byte = reader.read<u8>();
+	m.transform = reader.read<struct ipts_touch_metadata_transform>();
+	m.unknown = reader.read<struct ipts_touch_metadata_unknown>();
+
+	if (this->on_metadata)
+		this->on_metadata(m);
 }
 
 void Parser::parse_reports(Reader reader)
