@@ -21,8 +21,8 @@ LOCAL_SRC_FILES += $(call all-cpp-files-under, src/ipts)
 
 LOCAL_MODULE := iptsd
 LOCAL_MODULE_TAGS := optional
-LOCAL_SHARED_LIBRARIES := libinih libc++fs
-LOCAL_STATIC_LIBRARIES := libhidrd_usage libhidrd_item
+LOCAL_SHARED_LIBRARIES := libinih
+LOCAL_STATIC_LIBRARIES := libhidrd_usage libhidrd_item libc++fs
 LOCAL_HEADER_LIBRARIES := inih_headers spdlog_headers cli11 microsoft-gsl libbase_headers hidrd_headers
 LOCAL_C_INCLUDES:= $(LOCAL_PATH)/src
 LOCAL_POST_INSTALL_CMD := (hide) mkdir -p $(TARGET_OUT_VENDOR)/etc/ipts; \
