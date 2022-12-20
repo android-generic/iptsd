@@ -28,6 +28,7 @@ LOCAL_C_INCLUDES:= $(LOCAL_PATH)/src
 LOCAL_POST_INSTALL_CMD := (hide) mkdir -p $(TARGET_OUT_VENDOR)/etc/ipts; \
 						  rsync -av -l $(LOCAL_PATH)/etc/config/ipts.conf $(TARGET_OUT_VENDOR)/etc/ipts; \
 						  rsync -av -l $(LOCAL_PATH)/etc/config/* $(TARGET_OUT_VENDOR)/etc/ipts
+LOCAL_POST_INSTALL_CMD := ln -sf /vendor/bin/iptsd $(TARGET_OUT)/bin/iptsd
 LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_EXECUTABLE)
 
@@ -38,6 +39,7 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_SRC_FILES := etc/iptsd-find-hidraw
+LOCAL_POST_INSTALL_CMD := ln -sf /vendor/bin/iptsd-find-hidraw $(TARGET_OUT)/bin/iptsd-find-hidraw
 
 include $(BUILD_PREBUILT)
 
