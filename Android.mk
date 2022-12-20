@@ -37,7 +37,7 @@ LOCAL_MODULE := iptsd-find-hidraw
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_PROPRIETARY_MODULE := true
-LOCAL_SRC_FILES := $(LOCAL_PATH)/etc/iptsd-find-hidraw
+LOCAL_SRC_FILES := etc/iptsd-find-hidraw
 
 include $(BUILD_PREBUILT)
 
