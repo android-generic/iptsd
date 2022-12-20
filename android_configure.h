@@ -7,7 +7,9 @@
 #define IPTSD_DATADIR "/system/vendor/usr/share"
 #define IPTSD_SYSCONFDIR "/system/vendor/etc"
 
-#define IPTSD_CONFIG_DIR "/system/vendor/etc/ipts"
+
+#define IPTSD_PRESET_DIR "/system/vendor/etc/ipts"
+#define IPTSD_CONFIG_DIR "/data/vendor/ipts"
 #define IPTSD_CONFIG_FILE "ipts.conf"
 
 #endif /* _IPTSD_CONFIGURE_H_ */
