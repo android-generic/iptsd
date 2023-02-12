@@ -25,10 +25,10 @@ LOCAL_SHARED_LIBRARIES := libinih
 LOCAL_STATIC_LIBRARIES := libhidrd_usage libhidrd_item libc++fs
 LOCAL_HEADER_LIBRARIES := inih_headers spdlog_headers cli11 microsoft-gsl libbase_headers hidrd_headers
 LOCAL_C_INCLUDES:= $(LOCAL_PATH)/src
-LOCAL_POST_INSTALL_CMD := (hide) mkdir -p $(TARGET_OUT_VENDOR)/etc/ipts; \
-						  rsync -av -l $(LOCAL_PATH)/etc/config/ipts.conf $(TARGET_OUT_VENDOR)/etc/ipts; \
-						  rsync -av -l $(LOCAL_PATH)/etc/config/* $(TARGET_OUT_VENDOR)/etc/ipts
-LOCAL_POST_INSTALL_CMD := ln -sf /vendor/bin/iptsd $(TARGET_OUT)/bin/iptsd
+LOCAL_POST_INSTALL_CMD := $(hide) mkdir -p $(TARGET_OUT_VENDOR)/etc/ipts; \
+						  rsync -av -l $(LOCAL_PATH)/etc/iptsd.conf $(TARGET_OUT_VENDOR)/etc/ipts; \
+						  rsync -av -l $(LOCAL_PATH)/etc/presets/* $(TARGET_OUT_VENDOR)/etc/ipts; \
+						  ln -sf /vendor/bin/iptsd $(TARGET_OUT)/bin/iptsd
 LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_EXECUTABLE)
 
