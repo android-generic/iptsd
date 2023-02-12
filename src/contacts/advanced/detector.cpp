@@ -1,5 +1,7 @@
 #include "detector.hpp"
 
+#include "../neutral.hpp"
+
 #include <common/types.hpp>
 
 #include "algorithm/convolution.hpp"
@@ -13,12 +15,6 @@
 #include <container/image.hpp>
 #include <container/kernel.hpp>
 #include <container/ops.hpp>
-
-#ifdef __ANDROID__
-#include <contacts/eval/perf.hpp>
-#else
-#include "eval/perf.hpp"
-#endif
 
 #include <gsl/gsl>
 #include <math/num.hpp>
@@ -37,22 +33,8 @@ using namespace iptsd::math;
 
 namespace iptsd::contacts::advanced {
 
-BlobDetector::BlobDetector(index2_t size)
-    : m_perf_reg{}
-    , m_perf_t_total{m_perf_reg.create_entry("total")}
-    , m_perf_t_prep{m_perf_reg.create_entry("preprocessing")}
-    , m_perf_t_st{m_perf_reg.create_entry("structure-tensor")}
-    , m_perf_t_stev{m_perf_reg.create_entry("structure-tensor.eigenvalues")}
-    , m_perf_t_hess{m_perf_reg.create_entry("hessian")}
-    , m_perf_t_rdg{m_perf_reg.create_entry("ridge")}
-    , m_perf_t_obj{m_perf_reg.create_entry("objective")}
-    , m_perf_t_lmax{m_perf_reg.create_entry("objective.maximas")}
-    , m_perf_t_lbl{m_perf_reg.create_entry("labels")}
-    , m_perf_t_cscr{m_perf_reg.create_entry("component-score")}
-    , m_perf_t_wdt{m_perf_reg.create_entry("distance-transform")}
-    , m_perf_t_flt{m_perf_reg.create_entry("filter")}
-    , m_perf_t_lmaxf{m_perf_reg.create_entry("filter.maximas")}
-    , m_perf_t_gfit{m_perf_reg.create_entry("gaussian-fitting")}
+BlobDetector::BlobDetector(index2_t size, BlobDetectorConfig config)
+    : config{config}
     , m_hm{size}
     , m_img_pp{size}
     , m_img_m2_1{size}
@@ -86,34 +68,25 @@ BlobDetector::BlobDetector(index2_t size)
 
 auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
 {
-    auto _tr = m_perf_reg.record(m_perf_t_total);
-
     // preprocessing
     {
-        auto _r = m_perf_reg.record(m_perf_t_prep);
-
         alg::convolve(m_img_pp, hm, m_kern_pp);
 
-        auto const sum = container::ops::sum(m_img_pp);
-        auto const avg = sum / gsl::narrow<f32>(m_img_pp.size().span());
+        auto const nval = neutral(this->config, hm);
 
         container::ops::transform(m_img_pp, [&](auto const x) {
-            return std::max(x - avg, 0.0f);
+            return std::max(x - nval, 0.0f);
         });
     }
 
     // structure tensor
     {
-        auto _r = m_perf_reg.record(m_perf_t_st);
-
         alg::structure_tensor(m_img_m2_1, m_img_pp);
         alg::convolve(m_img_m2_2, m_img_m2_1, m_kern_st);
     }
 
     // eigenvalues of structure tensor
     {
-        auto _r = m_perf_reg.record(m_perf_t_stev);
-
         container::ops::transform(m_img_m2_2, m_img_stev, [](auto const s) {
             return s.eigenvalues();
         });
@@ -121,16 +94,12 @@ auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
 
     // hessian
     {
-        auto _r = m_perf_reg.record(m_perf_t_hess);
-
         alg::hessian(m_img_m2_1, m_img_pp);
         alg::convolve(m_img_m2_2, m_img_m2_1, m_kern_hs);
     }
 
     // ridge measure
     {
-        auto _r = m_perf_reg.record(m_perf_t_rdg);
-
         container::ops::transform(m_img_m2_2, m_img_rdg, [](auto h) {
             auto const [ev1, ev2] = h.eigenvalues();
             return std::max(ev1, 0.0f) + std::max(ev2, 0.0f);
@@ -139,8 +108,6 @@ auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
 
     // objective for labeling
     {
-        auto _r = m_perf_reg.record(m_perf_t_obj);
-
         f32 const wr = 1.5;
         f32 const wh = 1.0;
 
@@ -151,8 +118,6 @@ auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
 
     // local maximas
     {
-        auto _r = m_perf_reg.record(m_perf_t_lmax);
-
         // TODO: We may want to compute local maximas with a different smoothing factor
 
         m_maximas.clear();
@@ -162,15 +127,11 @@ auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
     // labels
     u16 num_labels = 0;
     {
-        auto _r = m_perf_reg.record(m_perf_t_lbl);
-
         num_labels = alg::label<4>(m_img_lbl, m_img_obj, 0.0f);
     }
 
     // component score
     {
-        auto _r = m_perf_reg.record(m_perf_t_cscr);
-
         m_cstats.clear();
         m_cstats.assign(num_labels, ComponentStats { 0, 0, 0, 0 });
 
@@ -231,8 +192,6 @@ auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
 
     // distance transform
     {
-        auto _r = m_perf_reg.record(m_perf_t_wdt);
-
         auto const th_inc = 0.6f;
 
         auto const wdt_cost = [&](index_t i, index2_t d) -> f32 {
@@ -266,8 +225,6 @@ auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
 
     // filter
     {
-        auto _r = m_perf_reg.record(m_perf_t_flt);
-
         for (index_t i = 0; i < m_img_pp.size().span(); ++i) {
             auto const sigma = 1.0f;
 
@@ -286,8 +243,6 @@ auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
 
     // filtered maximas
     {
-        auto _r = m_perf_reg.record(m_perf_t_lmaxf);
-
         // TODO: We may want to compute local maximas with a different smoothing factor
 
         m_maximas.clear();
@@ -296,8 +251,6 @@ auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
 
     // gaussian fitting
     if (!m_maximas.empty()) {
-        auto _r = m_perf_reg.record(m_perf_t_gfit);
-
         alg::gfit::reserve(m_gf_params, m_maximas.size(), m_gf_window);
 
         for (std::size_t i = 0; i < m_maximas.size(); ++i) {
@@ -347,7 +300,7 @@ auto BlobDetector::process(Image<f32> const& hm) -> std::vector<Blob> const&
             continue;
         }
 
-        m_touchpoints.push_back(Blob { p.mean.cast<f32>() + 0.5f, cov->cast<f32>() });
+        m_touchpoints.push_back(Blob { p.mean + 0.5, cov.value() });
     }
 
     return m_touchpoints;

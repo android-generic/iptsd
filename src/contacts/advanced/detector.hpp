@@ -8,7 +8,6 @@
 #include <container/image.hpp>
 #include <container/kernel.hpp>
 
-#include <contacts/eval/perf.hpp>
 #include <contacts/interface.hpp>
 
 #include <math/vec2.hpp>
@@ -34,7 +33,7 @@ struct ComponentStats {
 
 class BlobDetector : public IBlobDetector {
 public:
-    BlobDetector(index2_t size);
+    BlobDetector(index2_t size, BlobDetectorConfig config);
 
     auto data() -> Image<f32> & override;
     auto search() -> std::vector<Blob> const& override;
@@ -42,22 +41,7 @@ public:
 private:
     auto process(Image<f32> const& hm) -> std::vector<Blob> const&;
 
-    // performance measurements
-    eval::perf::Registry m_perf_reg;
-    eval::perf::Token m_perf_t_total;
-    eval::perf::Token m_perf_t_prep;
-    eval::perf::Token m_perf_t_st;
-    eval::perf::Token m_perf_t_stev;
-    eval::perf::Token m_perf_t_hess;
-    eval::perf::Token m_perf_t_rdg;
-    eval::perf::Token m_perf_t_obj;
-    eval::perf::Token m_perf_t_lmax;
-    eval::perf::Token m_perf_t_lbl;
-    eval::perf::Token m_perf_t_cscr;
-    eval::perf::Token m_perf_t_wdt;
-    eval::perf::Token m_perf_t_flt;
-    eval::perf::Token m_perf_t_lmaxf;
-    eval::perf::Token m_perf_t_gfit;
+    BlobDetectorConfig config;
 
     // temporary storage
     Image<f32> m_hm;

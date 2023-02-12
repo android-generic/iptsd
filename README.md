@@ -15,6 +15,8 @@ At the moment, only systemd based distributions are properly supported. The daem
 
 IPTSD is included in the linux-surface repository. This is the recommended way of installing it.
 
+**Important:** Support on Debian based distributions only goes back to the latest LTS release (Debian 11 and Ubuntu 22.04).
+
 If you want to try out changes that are not yet released, GitHub Actions builds Arch Linux, Debian and Fedora packages for every commit. You'll need to be signed-in to Github, then go to https://github.com/linux-surface/iptsd/actions, select the latest successful workflow and download the artifact named `<your distro>-latest`.
 
 ### Building
@@ -67,7 +69,7 @@ On Fedora (or any other SELinux enabled distribution) you also need to fix the S
 
 ```bash
 $ sudo semanage fcontext -a -t systemd_unit_file_t -s system_u /usr/lib/systemd/system/iptsd@.service
-$ sudo semanage fcontext -a -t usr_t -s system_u /usr/local/bin/ipts*
+$ sudo semanage fcontext -a -t usr_t -s system_u '/usr/local/bin/ipts.*'
 
 $ sudo restorecon -vF /usr/lib/systemd/system/iptsd@.service
 $ sudo restorecon -vF /usr/local/bin/ipts*

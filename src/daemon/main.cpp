@@ -72,9 +72,20 @@ static int main(gsl::span<char *> args)
 	spdlog::info("Connected to device {:04X}:{:04X}", device.vendor(), device.product());
 
 	ipts::Parser parser {};
-	parser.on_stylus = [&](const auto &data) { iptsd_stylus_input(ctx, data); };
-	parser.on_heatmap = [&](const auto &data) { iptsd_touch_input(ctx, data); };
-	parser.on_dft = [&](const auto &dft, auto &stylus) { iptsd_dft_input(ctx, dft, stylus); };
+
+	if (!config.touch_disable)
+		parser.on_heatmap = [&](const auto &data) { iptsd_touch_input(ctx, data); };
+	else
+		spdlog::warn("Touchscreen is disabled!");
+
+	if (!config.stylus_disable) {
+		parser.on_stylus = [&](const auto &data) { iptsd_stylus_input(ctx, data); };
+		parser.on_dft = [&](const auto &dft, auto &stylus) {
+			iptsd_dft_input(ctx, dft, stylus);
+		};
+	} else {
+		spdlog::warn("Stylus is disabled!");
+	}
 
 	// Get the buffer size from the HID descriptor
 	std::size_t buffer_size = device.buffer_size();
@@ -104,6 +115,10 @@ static int main(gsl::span<char *> args)
 		} catch (std::exception &e) {
 			spdlog::warn(e.what());
 			errors++;
+
+			// Sleep for 100ms to allow the device to get back to normal state
+			std::this_thread::sleep_for(100ms);
+
 			continue;
 		}
 
@@ -113,10 +128,18 @@ static int main(gsl::span<char *> args)
 
 	spdlog::info("Stopping");
 
-	// Disable multitouch mode
-	device.set_mode(false);
+	try {
+		// Disable multitouch mode
+		device.set_mode(false);
+	} catch (std::exception &e) {
+		spdlog::error(e.what());
+	}
 
-	return EXIT_FAILURE;
+	// If iptsd was stopped from outside, return no error
+	if (!should_exit)
+		return EXIT_FAILURE;
+
+	return 0;
 }
 
 } // namespace iptsd::daemon

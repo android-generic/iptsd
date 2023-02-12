@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name: iptsd
-Version: 0.5.1
+Version: 1.0.1
 Release: 1%{?dist}
 Summary: Userspace daemon for Intel Precise Touch & Stylus
 License: GPLv2+
@@ -61,6 +61,7 @@ kernel driver, and sends them back to the kernel using uinput devices.
 %{_bindir}/iptsd-calibrate
 %{_bindir}/iptsd-dump
 %{_bindir}/iptsd-find-hidraw
+%{_bindir}/iptsd-find-service
 %{_bindir}/iptsd-perf
 %{_bindir}/iptsd-plot
 %{_bindir}/iptsd-show

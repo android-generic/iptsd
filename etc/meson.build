@@ -1,7 +1,7 @@
 install_subdir('presets', install_dir: presetdir, strip_directory: true)
 
 configure_file(input: 'systemd/iptsd@.service.in', output: 'iptsd@.service', configuration: conf)
-install_data('iptsd-find-hidraw', install_dir: bindir)
+install_data('iptsd-find-hidraw', install_dir: bindir, install_mode: 'rwxr-xr-x')
 
 service_manager = get_option('service_manager')
 if service_manager.contains('systemd')
@@ -18,6 +18,7 @@ if service_manager.contains('systemd')
 
     install_data(unit, install_dir: unitdir)
     install_data('udev/50-ipts.rules', install_dir: rulesdir)
+    install_data('systemd/iptsd-find-service', install_dir: bindir, install_mode: 'rwxr-xr-x')
   else
     warning('systemd integration was enabled, but systemd was not found')
   endif

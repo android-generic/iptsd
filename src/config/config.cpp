@@ -73,6 +73,9 @@ static int parse_conf(void *user, const char *c_section, const char *c_name, con
 	if (section == "Config" && name == "Height")
 		config->height = std::stof(value);
 
+	if (section == "Touch" && name == "Disable")
+		config->touch_disable = to_bool(value);
+
 	if (section == "Touch" && name == "CheckCone")
 		config->touch_check_cone = to_bool(value);
 
@@ -89,6 +92,20 @@ static int parse_conf(void *user, const char *c_section, const char *c_name, con
 		std::transform(value.begin(), value.end(), value.begin(), ::tolower);
 		config->contacts_detection = value;
 	}
+
+	if (section == "Contacts" && name == "Neutral") {
+		std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+		config->contacts_neutral = value;
+	}
+
+	if (section == "Contacts" && name == "NeutralValue")
+		config->contacts_neutral_value = std::stof(value);
+
+	if (section == "Contacts" && name == "ActivationThreshold")
+		config->contacts_activation_threshold = std::stof(value);
+
+	if (section == "Contacts" && name == "DeactivationThreshold")
+		config->contacts_deactivation_threshold = std::stof(value);
 
 	if (section == "Contacts" && name == "TemporalWindow")
 		config->contacts_temporal_window = std::stoi(value);
@@ -116,6 +133,9 @@ static int parse_conf(void *user, const char *c_section, const char *c_name, con
 
 	if (section == "Contacts" && name == "DistanceThreshold")
 		config->contacts_distance_thresh = std::stof(value);
+
+	if (section == "Stylus" && name == "Disable")
+		config->stylus_disable = to_bool(value);
 
 	if (section == "Cone" && name == "Angle")
 		config->cone_angle = std::stof(value);
@@ -203,9 +223,20 @@ contacts::Config Config::contacts() const
 	config.invert_y = this->invert_y;
 
 	if (this->contacts_detection == "basic")
-		config.mode = contacts::BlobDetection::BASIC;
+		config.detection_mode = contacts::BlobDetection::BASIC;
 	else if (this->contacts_detection == "advanced")
-		config.mode = contacts::BlobDetection::ADVANCED;
+		config.detection_mode = contacts::BlobDetection::ADVANCED;
+
+	if (this->contacts_neutral == "mode")
+		config.neutral_mode = contacts::NeutralMode::MODE;
+	else if (this->contacts_neutral == "average")
+		config.neutral_mode = contacts::NeutralMode::AVERAGE;
+	else if (this->contacts_neutral == "constant")
+		config.neutral_mode = contacts::NeutralMode::CONSTANT;
+
+	config.neutral_value = this->contacts_neutral_value;
+	config.activation_threshold = this->contacts_activation_threshold;
+	config.deactivation_threshold = this->contacts_deactivation_threshold;
 
 	config.aspect_min = this->contacts_aspect_min;
 	config.aspect_max = this->contacts_aspect_max;
