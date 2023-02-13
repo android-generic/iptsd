@@ -23,7 +23,7 @@ LOCAL_MODULE := iptsd
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := libinih
 LOCAL_STATIC_LIBRARIES := libhidrd_usage libhidrd_item libc++fs
-LOCAL_HEADER_LIBRARIES := inih_headers spdlog_headers cli11 microsoft-gsl libbase_headers hidrd_headers
+LOCAL_HEADER_LIBRARIES := inih_headers spdlog_headers cli11 microsoft-gsl libbase_headers hidrd_headers libinih_headers
 LOCAL_C_INCLUDES:= $(LOCAL_PATH)/src
 LOCAL_POST_INSTALL_CMD := $(hide) mkdir -p $(TARGET_OUT_VENDOR)/etc/ipts; \
 						  rsync -av -l $(LOCAL_PATH)/etc/iptsd.conf $(TARGET_OUT_VENDOR)/etc/ipts; \
