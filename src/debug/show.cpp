@@ -26,9 +26,9 @@ static void iptsd_show_handle_input(const Cairo::RefPtr<Cairo::Context> &cairo, 
 	finder.resize(index2_t {data.dim.width, data.dim.height});
 
 	// Normalize and invert the heatmap data.
-	std::transform(data.data.begin(), data.data.end(), finder.data().begin(), [&](auto v) {
-		f32 val = static_cast<f32>(v - data.dim.z_min) /
-			  static_cast<f32>(data.dim.z_max - data.dim.z_min);
+	std::transform(data.data.begin(), data.data.end(), finder.data().begin(), [&](f32 v) {
+		const f32 val = (v - static_cast<f32>(data.dim.z_min)) /
+				static_cast<f32>(data.dim.z_max - data.dim.z_min);
 
 		return 1.0f - val;
 	});
@@ -54,12 +54,12 @@ static int main(gsl::span<char *> args)
 
 	CLI11_PARSE(app, args.size(), args.data());
 
-	ipts::Device device {path};
+	const ipts::Device device {path};
 
-	auto meta = device.get_metadata();
+	const std::optional<const ipts::Metadata> meta = device.get_metadata();
 	if (meta.has_value()) {
-		auto &t = meta->transform;
-		auto &u = meta->unknown.unknown;
+		const auto &t = meta->transform;
+		const auto &u = meta->unknown.unknown;
 
 		spdlog::info("Metadata:");
 		spdlog::info("rows={}, columns={}", meta->size.rows, meta->size.columns);
@@ -70,7 +70,7 @@ static int main(gsl::span<char *> args)
 			     u[8], u[9], u[10], u[11], u[12], u[13], u[14], u[15]);
 	}
 
-	config::Config config {device.vendor(), device.product(), meta};
+	const config::Config config {device.vendor(), device.product(), meta};
 
 	// Check if a config was found
 	if (config.width == 0 || config.height == 0)
@@ -80,7 +80,7 @@ static int main(gsl::span<char *> args)
 	contacts::ContactFinder finder {config.contacts()};
 
 	// Get the buffer size from the HID descriptor
-	std::size_t buffer_size = device.buffer_size();
+	const std::size_t buffer_size = device.buffer_size();
 	std::vector<u8> buffer(buffer_size);
 
 	SDL_Init(SDL_INIT_VIDEO);
@@ -100,11 +100,14 @@ static int main(gsl::span<char *> args)
 						   SDL_TEXTUREACCESS_STREAMING, rsize.x, rsize.y);
 
 	// Create a texture for drawing
-	auto drawtex = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, rsize.x, rsize.y);
-	auto cairo = Cairo::Context::create(drawtex);
+	const Cairo::RefPtr<Cairo::ImageSurface> drawtex =
+		Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, rsize.x, rsize.y);
+
+	// Create context for issuing draw commands
+	const Cairo::RefPtr<Cairo::Context> cairo = Cairo::Context::create(drawtex);
 
 	ipts::Parser parser {};
-	parser.on_heatmap = [&](const auto &data) {
+	parser.on_heatmap = [&](const ipts::Heatmap &data) {
 		iptsd_show_handle_input(cairo, rsize, vis, finder, data);
 	};
 
@@ -134,7 +137,7 @@ static int main(gsl::span<char *> args)
 			break;
 
 		try {
-			ssize_t size = device.read(buffer);
+			const ssize_t size = device.read(buffer);
 
 			// Does this report contain touch data?
 			if (!device.is_touch_data(buffer[0]))

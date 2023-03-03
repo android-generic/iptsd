@@ -32,9 +32,9 @@ static void iptsd_calibrate_handle_input(const config::Config &config,
 	finder.resize(index2_t {data.dim.width, data.dim.height});
 
 	// Normalize and invert the heatmap data.
-	std::transform(data.data.begin(), data.data.end(), finder.data().begin(), [&](auto v) {
-		f32 val = static_cast<f32>(v - data.dim.z_min) /
-			  static_cast<f32>(data.dim.z_max - data.dim.z_min);
+	std::transform(data.data.begin(), data.data.end(), finder.data().begin(), [&](f32 v) {
+		const f32 val = (v - static_cast<f32>(data.dim.z_min)) /
+				static_cast<f32>(data.dim.z_max - data.dim.z_min);
 
 		return 1.0f - val;
 	});
@@ -43,7 +43,7 @@ static void iptsd_calibrate_handle_input(const config::Config &config,
 	const std::vector<contacts::Contact> &contacts = finder.search();
 
 	// Calculate size and aspect of all stable contacts
-	for (const auto &contact : contacts) {
+	for (const contacts::Contact &contact : contacts) {
 		if (!contact.active || !contact.stable)
 			continue;
 
@@ -57,18 +57,18 @@ static void iptsd_calibrate_handle_input(const config::Config &config,
 	std::sort(size.begin(), size.end());
 	std::sort(aspect.begin(), aspect.end());
 
-	f64 size_avg = container::ops::sum(size) / static_cast<f64>(size.size());
-	f64 aspect_avg = container::ops::sum(aspect) / static_cast<f64>(aspect.size());
+	const f64 size_avg = container::ops::sum(size) / static_cast<f64>(size.size());
+	const f64 aspect_avg = container::ops::sum(aspect) / static_cast<f64>(aspect.size());
 
 	// Determine 1st and 99th percentile
-	f64 min_idx = std::max(gsl::narrow<f64>(size.size()) - 1, 0.0) * 0.01;
-	f64 max_idx = std::max(gsl::narrow<f64>(size.size()) - 1, 0.0) * 0.99;
+	const f64 min_idx = std::max(gsl::narrow<f64>(size.size()) - 1, 0.0) * 0.01;
+	const f64 max_idx = std::max(gsl::narrow<f64>(size.size()) - 1, 0.0) * 0.99;
 
-	f64 size_min = size[gsl::narrow<std::size_t>(std::round(min_idx))];
-	f64 size_max = size[gsl::narrow<std::size_t>(std::round(max_idx))];
+	const f64 size_min = size[gsl::narrow<std::size_t>(std::round(min_idx))];
+	const f64 size_max = size[gsl::narrow<std::size_t>(std::round(max_idx))];
 
-	f64 aspect_min = aspect[gsl::narrow<std::size_t>(std::round(min_idx))];
-	f64 aspect_max = aspect[gsl::narrow<std::size_t>(std::round(max_idx))];
+	const f64 aspect_min = aspect[gsl::narrow<std::size_t>(std::round(min_idx))];
+	const f64 aspect_max = aspect[gsl::narrow<std::size_t>(std::round(max_idx))];
 
 	// Reset console output
 	std::cout << "\033[A"; // Move cursor up one line
@@ -101,12 +101,12 @@ static int main(gsl::span<char *> args)
 	const auto _sigterm = common::signal<SIGTERM>([&](int) { should_exit = true; });
 	const auto _sigint = common::signal<SIGINT>([&](int) { should_exit = true; });
 
-	ipts::Device device {path};
+	const ipts::Device device {path};
 
-	auto meta = device.get_metadata();
+	const std::optional<const ipts::Metadata> meta = device.get_metadata();
 	if (meta.has_value()) {
-		auto &t = meta->transform;
-		auto &u = meta->unknown.unknown;
+		const auto &t = meta->transform;
+		const auto &u = meta->unknown.unknown;
 
 		spdlog::info("Metadata:");
 		spdlog::info("rows={}, columns={}", meta->size.rows, meta->size.columns);
@@ -117,7 +117,7 @@ static int main(gsl::span<char *> args)
 			     u[8], u[9], u[10], u[11], u[12], u[13], u[14], u[15]);
 	}
 
-	config::Config config {device.vendor(), device.product(), meta};
+	const config::Config config {device.vendor(), device.product(), meta};
 
 	// Check if a config was found
 	if (config.width == 0 || config.height == 0)
@@ -131,12 +131,12 @@ static int main(gsl::span<char *> args)
 	contacts::ContactFinder finder {config.contacts()};
 
 	ipts::Parser parser {};
-	parser.on_heatmap = [&](const auto &data) {
+	parser.on_heatmap = [&](const ipts::Heatmap &data) {
 		iptsd_calibrate_handle_input(config, finder, data);
 	};
 
 	// Get the buffer size from the HID descriptor
-	std::size_t buffer_size = device.buffer_size();
+	const std::size_t buffer_size = device.buffer_size();
 	std::vector<u8> buffer(buffer_size);
 
 	// Count errors, if we receive 50 continuous errors, chances are pretty good that
@@ -153,7 +153,7 @@ static int main(gsl::span<char *> args)
 		}
 
 		try {
-			ssize_t size = device.read(buffer);
+			const ssize_t size = device.read(buffer);
 
 			// Does this report contain touch data?
 			if (!device.is_touch_data(buffer[0]))
