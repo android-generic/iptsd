@@ -1,7 +1,10 @@
 %global debug_package %{nil}
 
+# Build with clang since it produces faster binaries
+%global toolchain clang
+
 Name: iptsd
-Version: 1.0.1
+Version: 1.2.1
 Release: 1%{?dist}
 Summary: Userspace daemon for Intel Precise Touch & Stylus
 License: GPLv2+
@@ -10,13 +13,19 @@ URL: https://github.com/linux-surface/iptsd
 Source: {{{ create_tarball }}}
 
 BuildRequires: meson
+
+%if "%{toolchain}" == "gcc"
 BuildRequires: gcc-g++
+%else
+BuildRequires: clang
+%endif
 
 # Some of our dependencies can only be resolved with cmake
 BuildRequires: cmake
 
 # Daemon
 BuildRequires: cmake(CLI11)
+BuildRequires: pkgconfig(eigen3)
 BuildRequires: pkgconfig(fmt)
 BuildRequires: pkgconfig(inih)
 BuildRequires: cmake(Microsoft.GSL)
@@ -58,6 +67,7 @@ kernel driver, and sends them back to the kernel using uinput devices.
 %dir %{_datadir}/iptsd
 %dir %{_sysconfdir}/iptsd.d
 %{_bindir}/iptsd
+%{_bindir}/iptsd-check-device
 %{_bindir}/iptsd-calibrate
 %{_bindir}/iptsd-dump
 %{_bindir}/iptsd-find-hidraw
@@ -66,5 +76,5 @@ kernel driver, and sends them back to the kernel using uinput devices.
 %{_bindir}/iptsd-plot
 %{_bindir}/iptsd-show
 %{_unitdir}/iptsd@.service
-%{_udevrulesdir}/50-ipts.rules
+%{_udevrulesdir}/50-iptsd.rules
 %{_datadir}/iptsd/*
