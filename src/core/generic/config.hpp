@@ -25,7 +25,6 @@ public:
 	// [Touch]
 	bool touch_disable = false;
 	bool touch_check_cone = true;
-	bool touch_check_stability = true;
 	bool touch_disable_on_palm = false;
 	bool touch_disable_on_stylus = false;
 
@@ -35,14 +34,14 @@ public:
 	f64 contacts_activation_threshold = 24;
 	f64 contacts_deactivation_threshold = 20;
 	usize contacts_temporal_window = 3;
+	f64 contacts_size_thresh_min = 0.1;
+	f64 contacts_size_thresh_max = 0.5;
+	f64 contacts_position_thresh_min = 0.1;
+	f64 contacts_position_thresh_max = 2;
 	f64 contacts_size_min = 0.2;
 	f64 contacts_size_max = 2;
 	f64 contacts_aspect_min = 1;
 	f64 contacts_aspect_max = 2.5;
-	f64 contacts_size_thresh = 0.1;
-	f64 contacts_position_thresh_min = 0.2;
-	f64 contacts_position_thresh_max = 2;
-	f64 contacts_distance_thresh = 1;
 
 	// [Stylus]
 	bool stylus_disable = false;
@@ -104,14 +103,13 @@ public:
 			this->contacts_aspect_max,
 		};
 
-		const f64 size_thresh = this->contacts_size_thresh;
-		const f64 dist_thresh = this->contacts_distance_thresh;
-
 		config.stability.check_temporal_stability = true;
 		config.stability.temporal_window = this->contacts_temporal_window;
-		config.stability.size_difference_threshold = size_thresh / diagonal;
-		config.stability.distance_threshold = dist_thresh / diagonal;
-		config.stability.movement_limits = Vector2<f64> {
+		config.stability.size_threshold = Vector2<f64> {
+			this->contacts_size_thresh_min / diagonal,
+			this->contacts_size_thresh_max / diagonal,
+		};
+		config.stability.position_threshold = Vector2<f64> {
 			this->contacts_position_thresh_min / diagonal,
 			this->contacts_position_thresh_max / diagonal,
 		};

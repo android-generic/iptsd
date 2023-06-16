@@ -148,7 +148,6 @@ private:
 
 		this->get(ini, "Touch", "Disable", m_config.touch_disable);
 		this->get(ini, "Touch", "CheckCone", m_config.touch_check_cone);
-		this->get(ini, "Touch", "CheckStability", m_config.touch_check_stability);
 		this->get(ini, "Touch", "DisableOnPalm", m_config.touch_disable_on_palm);
 		this->get(ini, "Touch", "DisableOnStylus", m_config.touch_disable_on_stylus);
 
@@ -157,14 +156,14 @@ private:
 		this->get(ini, "Contacts", "ActivationThreshold", m_config.contacts_activation_threshold);
 		this->get(ini, "Contacts", "DeactivationThreshold", m_config.contacts_deactivation_threshold);
 		this->get(ini, "Contacts", "TemporalWindow", m_config.contacts_temporal_window);
+		this->get(ini, "Contacts", "SizeThresholdMin", m_config.contacts_size_thresh_min);
+		this->get(ini, "Contacts", "SizeThresholdMax", m_config.contacts_size_thresh_max);
+		this->get(ini, "Contacts", "PositionThresholdMin", m_config.contacts_position_thresh_min);
+		this->get(ini, "Contacts", "PositionThresholdMax", m_config.contacts_position_thresh_max);
 		this->get(ini, "Contacts", "SizeMin", m_config.contacts_size_min);
 		this->get(ini, "Contacts", "SizeMax", m_config.contacts_size_max);
 		this->get(ini, "Contacts", "AspectMin", m_config.contacts_aspect_max);
 		this->get(ini, "Contacts", "AspectMax", m_config.contacts_aspect_max);
-		this->get(ini, "Contacts", "SizeThreshold", m_config.contacts_size_thresh);
-		this->get(ini, "Contacts", "PositionThresholdMin", m_config.contacts_position_thresh_min);
-		this->get(ini, "Contacts", "PositionThresholdMax", m_config.contacts_position_thresh_max);
-		this->get(ini, "Contacts", "DistanceThreshold", m_config.contacts_distance_thresh);
 
 		this->get(ini, "Stylus", "Disable", m_config.stylus_disable);
 		this->get(ini, "Stylus", "TipDistance", m_config.stylus_tip_distance);
@@ -182,6 +181,7 @@ private:
 
 		// Legacy options that are kept for compatibility
 		this->get(ini, "DFT", "TipDistance", m_config.stylus_tip_distance);
+		this->get(ini, "Contacts", "SizeThreshold", m_config.contacts_size_thresh_max);
 
 		// clang-format on
 	}
