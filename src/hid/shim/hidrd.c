@@ -1,5 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+/*
+ * This shim is neccessary, because the hidrd library contains code in
+ * its header files that is valid in C but invalid in C++.
+ *
+ * It is therefor required to prevent the C++ compiler from ever seeing
+ * these header files. The only way to do that is to wrap every function
+ * that we want to use using compatible data types, and then use a C compiler
+ * to build this shim and link it into our C++ program.
+ *
+ * Sadly, hidrd is probably the only library that facilitates parsing HID
+ * descriptors, so doing this is easier than writing everything manually.
+ */
+
 #include <hidrd/item/any.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -49,12 +62,12 @@ int64_t shim_hidrd_item_usage_page_get_value(const uint8_t *item)
 	return hidrd_item_usage_page_get_value((const hidrd_item *)item);
 }
 
-int64_t shim_hidrd_item_report_count_get_value(const uint8_t *item)
+uint32_t shim_hidrd_item_report_count_get_value(const uint8_t *item)
 {
 	return hidrd_item_report_count_get_value((const hidrd_item *)item);
 }
 
-int64_t shim_hidrd_item_report_size_get_value(const uint8_t *item)
+uint32_t shim_hidrd_item_report_size_get_value(const uint8_t *item)
 {
 	return hidrd_item_report_size_get_value((const hidrd_item *)item);
 }
