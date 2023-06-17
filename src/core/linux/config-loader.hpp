@@ -150,16 +150,18 @@ private:
 		this->get(ini, "Touch", "CheckCone", m_config.touch_check_cone);
 		this->get(ini, "Touch", "DisableOnPalm", m_config.touch_disable_on_palm);
 		this->get(ini, "Touch", "DisableOnStylus", m_config.touch_disable_on_stylus);
+		this->get(ini, "Touch", "Overshoot", m_config.touch_overshoot);
 
 		this->get(ini, "Contacts", "Neutral", m_config.contacts_neutral);
 		this->get(ini, "Contacts", "NeutralValue", m_config.contacts_neutral_value);
 		this->get(ini, "Contacts", "ActivationThreshold", m_config.contacts_activation_threshold);
 		this->get(ini, "Contacts", "DeactivationThreshold", m_config.contacts_deactivation_threshold);
-		this->get(ini, "Contacts", "TemporalWindow", m_config.contacts_temporal_window);
 		this->get(ini, "Contacts", "SizeThresholdMin", m_config.contacts_size_thresh_min);
 		this->get(ini, "Contacts", "SizeThresholdMax", m_config.contacts_size_thresh_max);
 		this->get(ini, "Contacts", "PositionThresholdMin", m_config.contacts_position_thresh_min);
 		this->get(ini, "Contacts", "PositionThresholdMax", m_config.contacts_position_thresh_max);
+		this->get(ini, "Contacts", "OrientationThresholdMin", m_config.contacts_orientation_thresh_min);
+		this->get(ini, "Contacts", "OrientationThresholdMax", m_config.contacts_orientation_thresh_max);
 		this->get(ini, "Contacts", "SizeMin", m_config.contacts_size_min);
 		this->get(ini, "Contacts", "SizeMax", m_config.contacts_size_max);
 		this->get(ini, "Contacts", "AspectMin", m_config.contacts_aspect_max);

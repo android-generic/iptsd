@@ -10,6 +10,8 @@
 #include <common/constants.hpp>
 #include <common/types.hpp>
 
+#include <gsl/gsl>
+
 #include <algorithm>
 #include <deque>
 #include <iterator>
@@ -26,21 +28,18 @@ public:
 private:
 	Config<T> m_config;
 
-	// The last n frames, with n being m_config.temporal_window.
-	std::deque<std::vector<Contact<T>>> m_frames;
+	// The last frame.
+	std::vector<Contact<T>> m_last {};
 
 public:
-	Stabilizer(Config<T> config)
-		: m_config {config}
-		, m_frames {std::max(config.temporal_window, casts::to<usize>(2) - 1)} {};
+	Stabilizer(Config<T> config) : m_config {std::move(config)} {};
 
 	/*!
-	 * Resets the stabilizer by clearing the stored copies of the last frames.
+	 * Resets the stabilizer by clearing the stored previous frames.
 	 */
 	void reset()
 	{
-		for (auto &frame : m_frames)
-			frame.clear();
+		m_last.clear();
 	}
 
 	/*!
@@ -52,17 +51,12 @@ public:
 	{
 		// Stabilize contacts
 		for (Contact<T> &contact : frame)
-			this->stabilize_contact(contact, m_frames.back());
+			this->stabilize_contact(contact);
 
-		auto nf = m_frames.front();
+		m_last.clear();
 
-		// Clear the oldest stored frame
-		m_frames.pop_front();
-		nf.clear();
-
-		// Copy the new frame
-		std::copy(frame.begin(), frame.end(), std::back_inserter(nf));
-		m_frames.push_back(nf);
+		// Save a copy of the new data
+		std::copy(frame.begin(), frame.end(), std::back_inserter(m_last));
 	}
 
 private:
@@ -72,22 +66,16 @@ private:
 	 * @param[in,out] contact The contact to stabilize.
 	 * @param[in] frame The previous frame.
 	 */
-	void stabilize_contact(Contact<T> &contact, const std::vector<Contact<T>> &frame) const
+	void stabilize_contact(Contact<T> &contact) const
 	{
 		// Contacts that can't be tracked can't be stabilized.
 		if (!contact.index.has_value())
 			return;
 
-		if (m_config.check_temporal_stability && m_config.temporal_window >= 2)
-			contact.stable = this->check_temporal(contact);
-		else
-			contact.stable = true;
-
-		if (m_config.temporal_window < 2)
-			return;
+		contact.stable = true;
 
 		const usize index = contact.index.value();
-		const auto wrapper = Contact<T>::find_in_frame(index, frame);
+		const auto wrapper = Contact<T>::find_in_frame(index, m_last);
 
 		if (!wrapper.has_value())
 			return;
@@ -99,33 +87,9 @@ private:
 
 		if (m_config.position_threshold.has_value())
 			this->stabilize_position(contact, last);
-	}
 
-	/*!
-	 * Checks the temporal stability of a contact.
-	 *
-	 * A contact is temporally stable if it appears in all frames of the temporal window.
-	 *
-	 * @param[in] contact The contact to check.
-	 * @return Whether the contact is present in all previous frames.
-	 */
-	[[nodiscard]] bool check_temporal(const Contact<T> &contact) const
-	{
-		// Contacts that can't be tracked are considered temporally stable.
-		if (!contact.index.has_value())
-			return true;
-
-		const usize index = contact.index.value();
-
-		// Iterate over the last frames and find the contact with the same index
-		for (auto itr = m_frames.crbegin(); itr != m_frames.crend(); itr++) {
-			const auto wrapper = Contact<T>::find_in_frame(index, *itr);
-
-			if (!wrapper.has_value())
-				return false;
-		}
-
-		return true;
+		if (m_config.orientation_threshold.has_value())
+			this->stabilize_orientation(contact, last);
 	}
 
 	/*!
@@ -184,6 +148,48 @@ private:
 		if (distance < thresh.x())
 			current.mean = last.mean;
 		else if (distance > thresh.y())
+			current.stable = false;
+	}
+
+	void stabilize_orientation(Contact<T> &current, const Contact<T> &last) const
+	{
+		if (!m_config.orientation_threshold.has_value())
+			return;
+
+		const T aspect = current.size.maxCoeff() / current.size.minCoeff();
+
+		/*
+		 * If the aspect ratio is too small, the orientation cannot be determined
+		 * in a stable way. To prevent errors, we set it to 0 in this case.
+		 *
+		 * TODO: Check if there is a better way to signal this (make orientation optional,
+		 * and / or applying the last stable value).
+		 */
+		if (aspect < 1.1) {
+			current.orientation = 0;
+			return;
+		}
+
+		const Vector2<T> thresh = m_config.orientation_threshold.value();
+
+		const T max = current.normalized ? One<T>() : gsl::narrow_cast<T>(M_PI);
+
+		// The angle difference in both directions.
+		const T d1 = std::abs(current.orientation - last.orientation);
+		const T d2 = max - d1;
+
+		// Pick the smaller difference to properly handle going from 0° to 179°.
+		const T delta = std::min(d1, d2);
+
+		/*
+		 * If the angle is changing too slow, discard the orientation change.
+		 * If the angle is changing too fast, mark it as unstable (we can't stabilize it).
+		 * Otherwise, don't change the orientation.
+		 */
+
+		if (delta < thresh.x())
+			current.orientation = last.orientation;
+		else if (delta > thresh.y())
 			current.stable = false;
 	}
 };

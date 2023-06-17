@@ -106,12 +106,10 @@ public:
 		// Find the inputs that need to be lifted
 		this->search_lifted(contacts);
 
-		if (this->is_blocked(contacts)) {
+		if (this->is_blocked(contacts))
 			this->lift_all();
-		} else {
-			this->process_multitouch(contacts);
-			this->process_singletouch(contacts);
-		}
+		else
+			this->process(contacts);
 
 		this->sync();
 	}
@@ -208,25 +206,68 @@ private:
 	 *
 	 * @param[in] contacts All currently active contacts.
 	 */
-	void process_multitouch(const std::vector<contacts::Contact<f64>> &contacts) const
+	void process(const std::vector<contacts::Contact<f64>> &contacts)
 	{
+		bool reset_singletouch = true;
+
+		const f64 ox = m_config.touch_overshoot / m_config.width;
+		const f64 oy = m_config.touch_overshoot / m_config.height;
+
 		for (const contacts::Contact<f64> &contact : contacts) {
 			// Ignore contacts without an index
 			if (!contact.index.has_value())
 				continue;
 
+			const usize index = contact.index.value();
+
 			// Ignore unstable changes
 			if (!contact.stable.value_or(true))
 				continue;
 
-			if (contact.valid.value_or(true))
+			// Check if the contact is too far outside of the screen.
+			bool lift = !contact.valid.value_or(true);
+			lift |= contact.mean.x() < -ox || contact.mean.x() > (ox + 1);
+			lift |= contact.mean.y() < -oy || contact.mean.y() > (oy + 1);
+
+			if (!lift)
 				this->emit_multitouch(contact);
 			else
-				this->lift_multitouch(contact.index.value_or(0));
+				this->lift_multitouch(index);
+
+			// If this is the selected singletouch contact, emit a singletouch event.
+			if (m_single_index != index)
+				continue;
+
+			if (!lift) {
+				this->emit_singletouch(contact);
+				reset_singletouch = false;
+			}
 		}
 
 		for (const usize &index : m_lift)
 			this->lift_multitouch(index);
+
+		if (reset_singletouch) {
+			this->lift_singletouch();
+
+			// Search for a new contact to emit as singletouch events.
+			for (const contacts::Contact<f64> &contact : contacts) {
+				// Ignore contacts without an index
+				if (!contact.index.has_value())
+					continue;
+
+				const usize index = contact.index.value();
+
+				if (index == m_single_index)
+					continue;
+
+				if (!contact.valid.value_or(true))
+					continue;
+
+				m_single_index = index;
+				return;
+			}
+		}
 	}
 
 	/*!
@@ -258,6 +299,9 @@ private:
 
 		if (m_config.invert_x != m_config.invert_y)
 			orientation = 1.0 - orientation;
+
+		mean.x() = std::clamp(mean.x(), 0.0, 1.0);
+		mean.y() = std::clamp(mean.y(), 0.0, 1.0);
 
 		const i32 index = casts::to<i32>(contact.index.value_or(0));
 
@@ -345,6 +389,9 @@ private:
 
 		if (m_config.invert_y)
 			mean.y() = 1.0 - mean.y();
+
+		mean.x() = std::clamp(mean.x(), 0.0, 1.0);
+		mean.y() = std::clamp(mean.y(), 0.0, 1.0);
 
 		const i32 x = casts::to<i32>(std::round(mean.x() * MAX_X));
 		const i32 y = casts::to<i32>(std::round(mean.y() * MAX_Y));
