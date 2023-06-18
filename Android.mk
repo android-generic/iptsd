@@ -4,8 +4,14 @@ IPTSD_CPPFLAGS :=  \
 	-std=c++17 -Wall -Wextra -Wpedantic \
 	-O3 -Wmissing-include-dirs \
 	-Winit-self -Wimplicit-fallthrough -Wdouble-promotion \
-	-Wconversion -march=x86-64-v3 \
+	-Wconversion \
 	-fexceptions -DSPDLOG_FMT_EXTERNAL
+
+ifeq ($(PLATFORM_SDK_VERSION),30)
+IPTSD_CPPFLAGS += -march=core-avx2
+else
+IPTSD_CPPFLAGS += -march=x86-64-v3
+endif
 
 IPTSD_SHARED_LIBRARIES := libinih-cpp libspdlog
 IPTSD_STATIC_LIBRARIES := libhidrd_usage libhidrd_item libc++fs fmtlib9
@@ -88,7 +94,7 @@ LOCAL_STATIC_LIBRARIES := $(IPTSD_STATIC_LIBRARIES)
 LOCAL_HEADER_LIBRARIES := $(IPTSD_HEADER_LIBRARIES)
 LOCAL_C_INCLUDES:= $(LOCAL_PATH)/src
 LOCAL_POST_INSTALL_CMD := $(hide) mkdir -p $(TARGET_OUT_VENDOR)/etc/ipts; \
-						  rsync -av -l $(LOCAL_PATH)/etc/iptsd.conf $(TARGET_OUT_VENDOR)/etc/ipts; \
+						  rsync -av -l $(LOCAL_PATH)/etc/iptsd.conf $(TARGET_OUT_VENDOR)/etc; \
 						  rsync -av -l $(LOCAL_PATH)/etc/presets/* $(TARGET_OUT_VENDOR)/etc/ipts; \
 						  ln -sf /vendor/bin/iptsd $(TARGET_OUT)/bin/iptsd
 LOCAL_PROPRIETARY_MODULE := true

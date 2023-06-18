@@ -3,8 +3,8 @@
 #ifndef IPTSD_CONFIGURE_H
 #define IPTSD_CONFIGURE_H
 
-#define IPTSD_PRESET_DIR "/system/vendor/etc/ipts"
+#define IPTSD_PRESET_DIR "/vendor/etc/ipts"
 #define IPTSD_CONFIG_DIR "/data/vendor/ipts"
-#define IPTSD_CONFIG_FILE "ipts.conf"
+#define IPTSD_CONFIG_FILE "/vendor/etc/ipts.conf"
 
 #endif /* _IPTSD_CONFIGURE_H_ */
