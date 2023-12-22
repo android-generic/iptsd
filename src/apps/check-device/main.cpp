@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <common/types.hpp>
-#include <core/generic/config.hpp>
-#include <core/generic/device.hpp>
-#include <core/linux/config-loader.hpp>
-#include <core/linux/hidraw-device.hpp>
-#include <ipts/data.hpp>
+#include <core/generic/application.hpp>
+#include <core/linux/device-runner.hpp>
 
 #include <CLI/CLI.hpp>
 #include <gsl/gsl>
@@ -14,7 +11,6 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
-#include <optional>
 #include <string>
 
 namespace iptsd::apps::check {
@@ -38,37 +34,15 @@ int run(const int argc, const char **argv)
 	if (quiet)
 		spdlog::set_level(spdlog::level::off);
 
-	// Open the device
-	const core::linux::HidrawDevice device {path};
-
-	const core::DeviceInfo info = device.info();
-	const std::optional<const ipts::Metadata> metadata = device.get_metadata();
-
-	spdlog::info("Opened device {:04X}:{:04X}", info.vendor, info.product);
-
-	// Check if the device can switch modes
-	if (!device.has_set_mode()) {
-		spdlog::error("{} is not an IPTS device!", path.string());
-		return EXIT_FAILURE;
-	}
-
-	// Check if the device can send touch data.
-	if (!device.has_touch_data()) {
-		spdlog::error("{} is not an IPTS device!", path.string());
-		return EXIT_FAILURE;
-	}
-
-	// Check if the device has a config
-	const core::linux::ConfigLoader loader {info, metadata};
-	const core::Config config = loader.config();
-
-	if (config.width == 0 || config.height == 0) {
+	try {
+		// Create a dummy application that reads from the device.
+		const core::linux::DeviceRunner<core::Application> dummy {path};
+	} catch (std::exception & /* unused */) {
 		spdlog::error("{} is not an IPTS device!", path.string());
 		return EXIT_FAILURE;
 	}
 
 	spdlog::info("{} is an IPTS device!", path.string());
-
 	return 0;
 }
 

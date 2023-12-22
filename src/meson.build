@@ -7,7 +7,6 @@ includes = [
 ]
 
 cxxflags = [
-  '-Wlogical-op',
   '-Wmissing-include-dirs',
   '-Winit-self',
   '-Wimplicit-fallthrough',
@@ -42,7 +41,6 @@ add_project_arguments(cxxflags, language: 'cpp')
 
 if get_option('optimization') in ['2', '3']
   optflags = cpp.get_supported_arguments(optflags)
-  add_project_arguments(optflags, language: 'cpp')
 endif
 
 # Build wrapped dependencies as static libraries and disable warnings
@@ -61,7 +59,7 @@ cli11 = dependency('CLI11',
 eigen = dependency('eigen3',
   fallback: ['eigen', 'eigen_dep'],
   default_options: dependency_options,
-   include_type: 'system',
+  include_type: 'system',
 )
 
 fmt = dependency('fmt',
@@ -82,20 +80,8 @@ gsl = dependency('Microsoft.GSL',
 
 spdlog = dependency('spdlog',
   fallback: ['spdlog', 'spdlog_dep'],
-  default_options: dependency_options,
+  default_options: dependency_options + ['tests=false'],
 )
-
-forcefallback = get_option('wrap_mode') == 'forcefallback'
-
-hidrd_item = cpp.find_library('hidrd_item', required: false)
-if forcefallback or not hidrd_item.found()
-  hidrd_item = dependency('hidrd_item', default_options: dependency_options)
-endif
-
-hidrd_usage = cpp.find_library('hidrd_usage', required: false)
-if forcefallback or not hidrd_usage.found()
-  hidrd_usage = dependency('hidrd_usage', default_options: dependency_options)
-endif
 
 # Find libstdc++fs for older GCC
 stdcppfs = cpp.find_library('stdc++fs')
@@ -111,26 +97,16 @@ default_deps = [
   stdcppfs,
 ]
 
-# hidrd dependencies
-hidrd_deps = [
-  hidrd_item,
-  hidrd_usage,
-]
-
-# Build the hidrd shim with a C compiler
-hidrd_shim = static_library('hidrd_shim', 'hid/shim/hidrd.c', dependencies: hidrd_deps)
-
 # The main iptsd daemon
 executable('iptsd', 'apps/daemon/main.cpp',
            install: true,
-           link_with: hidrd_shim,
+           cpp_args: optflags,
            dependencies: default_deps,
            include_directories: includes,
 )
 
 executable('iptsd-check-device', 'apps/check-device/main.cpp',
            install: true,
-           link_with: hidrd_shim,
            dependencies: default_deps,
            include_directories: includes,
 )
@@ -140,7 +116,7 @@ tools = get_option('debug_tools')
 if tools.contains('calibrate')
   executable('iptsd-calibrate', 'apps/calibrate/main.cpp',
              install: true,
-             link_with: hidrd_shim,
+             cpp_args: optflags,
              dependencies: default_deps,
              include_directories: includes,
   )
@@ -149,7 +125,7 @@ endif
 if tools.contains('dump')
   executable('iptsd-dump', 'apps/dump/main.cpp',
              install: true,
-             link_with: hidrd_shim,
+             cpp_args: optflags,
              dependencies: default_deps,
              include_directories: includes,
   )
@@ -158,6 +134,7 @@ endif
 if tools.contains('perf')
   executable('iptsd-perf', 'apps/perf/main.cpp',
              install: true,
+             cpp_args: optflags,
              dependencies: default_deps,
              include_directories: includes,
   )
@@ -171,6 +148,7 @@ if tools.contains('plot')
   if cairo.found()
     executable('iptsd-plot', 'apps/visualization/plot.cpp',
                install: true,
+               cpp_args: optflags,
                dependencies: default_deps + [cairo],
                include_directories: includes,
     )
@@ -180,15 +158,44 @@ if tools.contains('plot')
 endif
 
 if tools.contains('show')
+  sdl_options = [
+    'test=false',
+    'use_audio=disabled',
+    'use_joystick=disabled',
+    'use_haptic=disabled',
+    'use_hidapi=disabled',
+    'use_sensor=disabled',
+    'use_video=enabled',
+    'use_video_x11=enabled',
+    'use_video_wayland=disabled',
+    'use_video_wayland_libdecor=disabled',
+    'use_video_opengl=disabled',
+    'use_video_openglesv2=enabled',
+    'use_video_vulkan=disabled',
+    'use_video_offscreen=disabled',
+    'system_iconv=disabled',
+    'use_dummies=true',
+    'prefer_dlopen=true',
+  ]
+
   sdl = dependency('sdl2',
     fallback: ['sdl2', 'sdl2_dep'],
-    default_options: dependency_options,
+    default_options: dependency_options + sdl_options,
+  )
+
+  # Enabling compiler warnings in the consuming project is a great idea, SDL...
+  sdl = sdl.partial_dependency(
+    compile_args: sdl.type_name() == 'pkgconfig',
+    includes: true,
+    link_args: true,
+    links: true,
+    sources: true
   )
 
   if cairo.found()
     executable('iptsd-show', 'apps/visualization/show.cpp',
                install: true,
-               link_with: hidrd_shim,
+               cpp_args: optflags,
                dependencies: default_deps + [cairo, sdl],
                include_directories: includes,
     )
