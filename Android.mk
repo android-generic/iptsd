@@ -14,16 +14,14 @@ IPTSD_CPPFLAGS += -march=x86-64-v3
 endif
 
 IPTSD_SHARED_LIBRARIES := libinih-cpp libspdlog
-IPTSD_STATIC_LIBRARIES := libhidrd_usage libhidrd_item libc++fs fmtlib9
+IPTSD_STATIC_LIBRARIES := libc++fs fmtlib9
 IPTSD_HEADER_LIBRARIES := libeigen inih_headers cli11 fmtlib9_headers\
-						microsoft-gsl hidrd_headers libinih-cpp_headers
+						microsoft-gsl libinih-cpp_headers
 
 #build iptsd-calibrate
 include $(CLEAR_VARS)
 LOCAL_CPPFLAGS := $(IPTSD_CPPFLAGS)
-LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/calibrate) \
-				src/hid/shim/hidrd.c
-
+LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/calibrate)
 LOCAL_MODULE := iptsd-calibrate
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := $(IPTSD_SHARED_LIBRARIES)
@@ -37,9 +35,7 @@ include $(BUILD_EXECUTABLE)
 #build iptsd-check-device
 include $(CLEAR_VARS)
 LOCAL_CPPFLAGS := $(IPTSD_CPPFLAGS)
-LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/check-device) \
-				src/hid/shim/hidrd.c
-
+LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/check-device)
 LOCAL_MODULE := iptsd-check-device
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := $(IPTSD_SHARED_LIBRARIES)
@@ -53,9 +49,7 @@ include $(BUILD_EXECUTABLE)
 #build iptsd-dump
 include $(CLEAR_VARS)
 LOCAL_CPPFLAGS := $(IPTSD_CPPFLAGS)
-LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/dump) \
-				src/hid/shim/hidrd.c
-
+LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/dump)
 LOCAL_MODULE := iptsd-dump
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := $(IPTSD_SHARED_LIBRARIES)
@@ -69,8 +63,7 @@ include $(BUILD_EXECUTABLE)
 #build iptsd-perf
 include $(CLEAR_VARS)
 LOCAL_CPPFLAGS := $(IPTSD_CPPFLAGS)
-LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/perf) \
-
+LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/perf)
 LOCAL_MODULE := iptsd-perf
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := $(IPTSD_SHARED_LIBRARIES)
@@ -84,9 +77,7 @@ include $(BUILD_EXECUTABLE)
 #build iptsd
 include $(CLEAR_VARS)
 LOCAL_CPPFLAGS := $(IPTSD_CPPFLAGS)
-LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/daemon) \
-				src/hid/shim/hidrd.c
-
+LOCAL_SRC_FILES := $(call all-cpp-files-under, src/apps/daemon)
 LOCAL_MODULE := iptsd
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := $(IPTSD_SHARED_LIBRARIES)
