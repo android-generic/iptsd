@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <common/buildopts.hpp>
 #include <common/casts.hpp>
-#include <common/constants.hpp>
 #include <common/types.hpp>
 
 namespace iptsd::contacts::detection::convolution::impl {
@@ -18,8 +18,8 @@ namespace iptsd::contacts::detection::convolution::impl {
  */
 template <class DerivedData, class DerivedKernel>
 void run_5x5(const DenseBase<DerivedData> &in,
-	     const DenseBase<DerivedKernel> &kernel,
-	     DenseBase<DerivedData> &out)
+             const DenseBase<DerivedKernel> &kernel,
+             DenseBase<DerivedData> &out)
 {
 	using T = typename DenseBase<DerivedData>::Scalar;
 	using S = typename DenseBase<DerivedKernel>::Scalar;
@@ -32,22 +32,22 @@ void run_5x5(const DenseBase<DerivedData> &in,
 		const Eigen::Index x = casts::to_eigen(dx + 2);
 		const Eigen::Index y = casts::to_eigen(dy + 2);
 
-#ifdef IPTSD_CONFIG_FORCE_ACCESS_CHECKS
-		return kernel(y, x);
-#else
-		return kernel.coeff(y, x);
-#endif
+		if constexpr (common::buildopts::ForceAccessChecks) {
+			return kernel(y, x);
+		} else {
+			return kernel.coeff(y, x);
+		};
 	};
 
 	const auto d = [&](Eigen::Index i, isize dx, isize dy) constexpr -> T {
 		const isize sdx = casts::to_signed(i) + dy * casts::to_signed(cols) + dx;
 		const Eigen::Index index = casts::to_eigen(sdx);
 
-#ifdef IPTSD_CONFIG_FORCE_ACCESS_CHECKS
-		return in(index);
-#else
-		return in.coeff(index);
-#endif
+		if constexpr (common::buildopts::ForceAccessChecks) {
+			return in(index);
+		} else {
+			in.coeff(index);
+		}
 	};
 
 	// processing...
@@ -57,7 +57,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 	{
 		// x = 0
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, 0, 0) * k(-2, -2); // extended
 			v += d(i, 0, 0) * k(-1, -2); // extended
@@ -94,7 +94,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, 0) * k(-2, -2); // extended
 			v += d(i, -1, 0) * k(-1, -2); // extended
@@ -132,7 +132,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 		// 1 < x < n - 2
 		const auto limit = i + rows - 4;
 		while (i < limit) {
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, 0) * k(-2, -2); // extended
 			v += d(i, -1, 0) * k(-1, -2); // extended
@@ -169,7 +169,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 2
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, 0) * k(-2, -2); // extended
 			v += d(i, -1, 0) * k(-1, -2); // extended
@@ -206,7 +206,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, 0) * k(-2, -2); // extended
 			v += d(i, -1, 0) * k(-1, -2); // extended
@@ -246,7 +246,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 	{
 		// x = 0
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, 0, -1) * k(-2, -2); // extended
 			v += d(i, 0, -1) * k(-1, -2); // extended
@@ -283,7 +283,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, -1) * k(-2, -2); // extended
 			v += d(i, -1, -1) * k(-1, -2); // extended
@@ -321,7 +321,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 		// 1 < x < n - 2
 		const auto limit = i + rows - 4;
 		while (i < limit) {
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -1) * k(-2, -2); // extended
 			v += d(i, -1, -1) * k(-1, -2); // extended
@@ -358,7 +358,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 2
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -1) * k(-2, -2); // extended
 			v += d(i, -1, -1) * k(-1, -2); // extended
@@ -395,7 +395,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -1) * k(-2, -2); // extended
 			v += d(i, -1, -1) * k(-1, -2); // extended
@@ -435,7 +435,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 	while (i < rows * (cols - 2)) {
 		// x = 0
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, 0, -2) * k(-2, -2); // extended
 			v += d(i, 0, -2) * k(-1, -2); // extended
@@ -472,7 +472,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, -2) * k(-2, -2); // extended
 			v += d(i, -1, -2) * k(-1, -2);
@@ -510,7 +510,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 		// 1 < x < n - 2
 		const auto limit = i + rows - 4;
 		while (i < limit) {
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -2) * k(-2, -2);
 			v += d(i, -1, -2) * k(-1, -2);
@@ -547,7 +547,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 2
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -2) * k(-2, -2);
 			v += d(i, -1, -2) * k(-1, -2);
@@ -584,7 +584,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -2) * k(-2, -2);
 			v += d(i, -1, -2) * k(-1, -2);
@@ -624,7 +624,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 	{
 		// x = 0
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, 0, -2) * k(-2, -2); // extended
 			v += d(i, 0, -2) * k(-1, -2); // extended
@@ -661,7 +661,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, -2) * k(-2, -2); // extended
 			v += d(i, -1, -2) * k(-1, -2);
@@ -699,7 +699,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 		// 1 < x < n - 2
 		const auto limit = i + rows - 4;
 		while (i < limit) {
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -2) * k(-2, -2);
 			v += d(i, -1, -2) * k(-1, -2);
@@ -736,7 +736,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 2
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -2) * k(-2, -2);
 			v += d(i, -1, -2) * k(-1, -2);
@@ -773,7 +773,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -2) * k(-2, -2);
 			v += d(i, -1, -2) * k(-1, -2);
@@ -813,7 +813,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 	{
 		// x = 0
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, 0, -2) * k(-2, -2); // extended
 			v += d(i, 0, -2) * k(-1, -2); // extended
@@ -850,7 +850,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, -2) * k(-2, -2); // extended
 			v += d(i, -1, -2) * k(-1, -2);
@@ -888,7 +888,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 		// 1 < x < n - 2
 		const auto limit = i + rows - 4;
 		while (i < limit) {
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -2) * k(-2, -2);
 			v += d(i, -1, -2) * k(-1, -2);
@@ -925,7 +925,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 2
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -2) * k(-2, -2);
 			v += d(i, -1, -2) * k(-1, -2);
@@ -962,7 +962,7 @@ void run_5x5(const DenseBase<DerivedData> &in,
 
 		// x = n - 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -2, -2) * k(-2, -2);
 			v += d(i, -1, -2) * k(-1, -2);

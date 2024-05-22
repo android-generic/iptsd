@@ -3,13 +3,15 @@
 #ifndef IPTSD_CORE_GENERIC_CONFIG_HPP
 #define IPTSD_CORE_GENERIC_CONFIG_HPP
 
+#include "errors.hpp"
+
+#include <common/error.hpp>
 #include <common/types.hpp>
 #include <contacts/config.hpp>
 #include <ipts/parser.hpp>
 
 #include <optional>
 #include <string>
-#include <type_traits>
 
 namespace iptsd::core {
 
@@ -55,6 +57,8 @@ public:
 	usize dft_button_min_mag = 1000;
 	usize dft_freq_min_mag = 10000;
 	usize dft_tilt_min_mag = 10000;
+	usize dft_mpp2_button_min_mag = 50000;
+	usize dft_mpp2_contact_min_mag = 50000;
 	f64 dft_tilt_distance = 0.6;
 
 public:
@@ -82,6 +86,8 @@ public:
 			config.detection.neutral_value_algorithm = Algorithm::AVERAGE;
 		else if (this->contacts_neutral == "constant")
 			config.detection.neutral_value_algorithm = Algorithm::CONSTANT;
+		else
+			throw common::Error<Error::InvalidNeutralValueAlgorithm> {};
 
 		const f64 nval_offset = this->contacts_neutral_value;
 

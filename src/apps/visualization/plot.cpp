@@ -10,7 +10,6 @@
 #include <gsl/gsl>
 #include <spdlog/spdlog.h>
 
-#include <algorithm>
 #include <csignal>
 #include <cstdlib>
 #include <exception>
@@ -59,7 +58,7 @@ int main(const int argc, const char **argv)
 
 	try {
 		return iptsd::apps::visualization::plot::run(argc, argv);
-	} catch (std::exception &e) {
+	} catch (const std::exception &e) {
 		spdlog::error(e.what());
 		return EXIT_FAILURE;
 	}

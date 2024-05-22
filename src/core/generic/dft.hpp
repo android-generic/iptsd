@@ -7,6 +7,7 @@
 
 #include <common/casts.hpp>
 #include <ipts/data.hpp>
+#include <ipts/protocol/dft.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -27,10 +28,24 @@ private:
 	i32 m_imag = 0;
 	std::optional<u32> m_group = std::nullopt;
 
+	// For the MPP v2 button detection we only care about the first binary
+	// (0x0a) dft window, but there's two in the group, we keep track of the
+	// group when 0x0a was encountered, this allows comparing against this
+	// value to use only the first window in the group.
+	std::optional<u32> m_mppv2_binary_group = std::nullopt;
+
+	// Boolean to track whether a button is held according to mpp v2.
+	// This is used instead of the button threshold detection.
+	std::optional<bool> m_mppv2_button_or_eraser = std::nullopt;
+
+	// Boolean to track whether the pen is in contact according to mpp v2.
+	// This is used to override the contact state in the pressure frame handling.
+	std::optional<bool> m_mppv2_in_contact = std::nullopt;
+
 public:
-	DftStylus(Config config, std::optional<const ipts::Metadata> metadata)
-		: m_config {std::move(config)}
-		, m_metadata {std::move(metadata)} {};
+	DftStylus(Config config, const std::optional<const ipts::Metadata> &metadata)
+		: m_config {std::move(config)},
+		  m_metadata {metadata} {};
 
 	/*!
 	 * Loads a DFT window and calculates stylus properties from it.
@@ -40,14 +55,20 @@ public:
 	void input(const ipts::DftWindow &dft)
 	{
 		switch (dft.type) {
-		case IPTS_DFT_ID_POSITION:
+		case ipts::protocol::dft::Type::Position:
 			this->handle_position(dft);
 			break;
-		case IPTS_DFT_ID_BUTTON:
+		case ipts::protocol::dft::Type::Button:
 			this->handle_button(dft);
 			break;
-		case IPTS_DFT_ID_PRESSURE:
+		case ipts::protocol::dft::Type::Pressure:
 			this->handle_pressure(dft);
+			break;
+		case ipts::protocol::dft::Type::PositionMPP_2:
+			this->handle_position_mpp_2(dft);
+			break;
+		case ipts::protocol::dft::Type::BinaryMPP_2:
+			this->handle_dft_binary_mpp_2(dft);
 			break;
 		default:
 			// Ignored
@@ -69,11 +90,11 @@ private:
 	/*!
 	 * Calculates the stylus position from a DFT window.
 	 *
-	 * @param[in] dft The DFT window (with type == IPTS_DFT_ID_POSITION)
+	 * @param[in] dft The DFT window (with type == Type::Position)
 	 */
 	void handle_position(const ipts::DftWindow &dft)
 	{
-		if (dft.rows <= 1) {
+		if (dft.x.size() <= 1) {
 			this->lift();
 			return;
 		}
@@ -84,19 +105,20 @@ private:
 			return;
 		}
 
-		u8 width = dft.dim.width;
-		u8 height = dft.dim.height;
+		u8 width = dft.width;
+		u8 height = dft.height;
 
 		if ((width == 0 || height == 0) && m_metadata.has_value()) {
-			width = casts::to<u8>(m_metadata->size.columns);
-			height = casts::to<u8>(m_metadata->size.rows);
+			width = casts::to<u8>(m_metadata->dimensions.columns);
+			height = casts::to<u8>(m_metadata->dimensions.rows);
 		}
 
-		m_real = dft.x[0].real[IPTS_DFT_NUM_COMPONENTS / 2] +
-			 dft.y[0].real[IPTS_DFT_NUM_COMPONENTS / 2];
-		m_imag = dft.x[0].imag[IPTS_DFT_NUM_COMPONENTS / 2] +
-			 dft.y[0].imag[IPTS_DFT_NUM_COMPONENTS / 2];
 		m_group = dft.group;
+
+		m_real = dft.x[0].real[ipts::protocol::dft::NUM_COMPONENTS / 2] +
+		         dft.y[0].real[ipts::protocol::dft::NUM_COMPONENTS / 2];
+		m_imag = dft.x[0].imag[ipts::protocol::dft::NUM_COMPONENTS / 2] +
+		         dft.y[0].imag[ipts::protocol::dft::NUM_COMPONENTS / 2];
 
 		f64 x = this->interpolate_position(dft.x[0]);
 		f64 y = this->interpolate_position(dft.y[0]);
@@ -154,11 +176,11 @@ private:
 	/*!
 	 * Calculates the button states of the stylus from a DFT window.
 	 *
-	 * @param[in] dft The DFT window (with type == IPTS_DFT_ID_BUTTON)
+	 * @param[in] dft The DFT window (with type == Type::Button)
 	 */
 	void handle_button(const ipts::DftWindow &dft)
 	{
-		if (dft.rows <= 0)
+		if (dft.x.empty())
 			return;
 
 		// The position and button signals must be from the same group,
@@ -169,12 +191,14 @@ private:
 		bool button = false;
 		bool rubber = false;
 
-		if (dft.x[0].magnitude > m_config.dft_button_min_mag &&
-		    dft.y[0].magnitude > m_config.dft_button_min_mag) {
-			const i32 real = dft.x[0].real[IPTS_DFT_NUM_COMPONENTS / 2] +
-					 dft.y[0].real[IPTS_DFT_NUM_COMPONENTS / 2];
-			const i32 imag = dft.x[0].imag[IPTS_DFT_NUM_COMPONENTS / 2] +
-					 dft.y[0].imag[IPTS_DFT_NUM_COMPONENTS / 2];
+		// If mppv2 has decided on a button state use that, else use the magnitude decision.
+		if (m_mppv2_button_or_eraser.value_or(
+			    dft.x[0].magnitude > m_config.dft_button_min_mag &&
+			    dft.y[0].magnitude > m_config.dft_button_min_mag)) {
+			const i32 real = dft.x[0].real[ipts::protocol::dft::NUM_COMPONENTS / 2] +
+			                 dft.y[0].real[ipts::protocol::dft::NUM_COMPONENTS / 2];
+			const i32 imag = dft.x[0].imag[ipts::protocol::dft::NUM_COMPONENTS / 2] +
+			                 dft.y[0].imag[ipts::protocol::dft::NUM_COMPONENTS / 2];
 
 			// same phase as position signal = eraser, opposite phase = button
 			const i32 val = m_real * real + m_imag * imag;
@@ -190,23 +214,84 @@ private:
 	/*!
 	 * Calculates the current pressure of the stylus from a DFT window.
 	 *
-	 * @param[in] dft The DFT window (with type == IPTS_DFT_ID_PRESSURE)
+	 * @param[in] dft The DFT window (with type == Type::Pressure)
 	 */
 	void handle_pressure(const ipts::DftWindow &dft)
 	{
-		if (dft.rows < IPTS_DFT_PRESSURE_ROWS)
+		if (dft.x.size() < ipts::protocol::dft::PRESSURE_ROWS)
 			return;
 
-		f64 p = this->interpolate_frequency(dft, IPTS_DFT_PRESSURE_ROWS);
-		p = 1 - p;
+		const f64 p =
+			1 - this->interpolate_frequency(dft, ipts::protocol::dft::PRESSURE_ROWS);
 
 		if (p > 0) {
 			m_stylus.contact = true;
 			m_stylus.pressure = std::clamp(p, 0.0, 1.0);
 		} else {
-			m_stylus.contact = false;
+			m_stylus.contact = m_mppv2_in_contact.value_or(false);
 			m_stylus.pressure = 0;
 		}
+	}
+
+	/*!
+	 * Determines the current button state from the 0x0a frame, it can
+	 * only be used for MPP v2 pens. The eraser is still obtained from the
+	 * phase using the button frame.
+	 */
+	void handle_dft_binary_mpp_2(const ipts::DftWindow &dft)
+	{
+		if (dft.x.size() <= 5) { // not sure if this can happen?
+			return;
+		}
+
+		// Second time we see this dft window in this group, skip it.
+		if (!dft.group.has_value() || m_mppv2_binary_group == dft.group)
+			return;
+		m_mppv2_binary_group = dft.group;
+
+		// Clearing the state in case we can't determine it.
+		m_mppv2_button_or_eraser = std::nullopt;
+
+		// Now, we can process the frame to determine button state.
+		// First, collapse x and y, they convey the same information.
+		const auto mag_4 = dft.x[4].magnitude + dft.y[4].magnitude;
+		const auto mag_5 = dft.x[5].magnitude + dft.y[5].magnitude;
+		const auto threshold = 2 * m_config.dft_mpp2_button_min_mag;
+
+		if (mag_4 < threshold && mag_5 < threshold) {
+			// Not enough signal to make a decision.
+			return;
+		}
+
+		// One of them is above the threshold, if 5 is higher than 4, button
+		// is held.
+		m_mppv2_button_or_eraser = mag_4 < mag_5;
+	}
+
+	/*!
+	 * Determines whether the pen is making contact with the screen, it can
+	 * only be used for MPP v2 pens.
+	 */
+	void handle_position_mpp_2(const ipts::DftWindow &dft)
+	{
+		// Clearing the state in case we can't determine it.
+		m_mppv2_in_contact = std::nullopt;
+
+		if (dft.x.size() <= 3) { // not sure if this can happen?
+			return;
+		}
+
+		const auto mag_2 = dft.x[2].magnitude + dft.y[2].magnitude;
+		const auto mag_3 = dft.x[3].magnitude + dft.y[3].magnitude;
+
+		const auto threshold = 2 * m_config.dft_mpp2_contact_min_mag;
+		if (mag_2 < threshold && mag_3 < threshold) {
+			// Not enough signal to make a decision.
+			return;
+		}
+
+		// The pen switches the row from two to three when there's contact.
+		m_mppv2_in_contact = mag_2 < mag_3;
 	}
 
 	/*!
@@ -215,35 +300,36 @@ private:
 	 * @param[in] row A list of measurements on one axis.
 	 * @return The position of the stylus on that axis.
 	 */
-	[[nodiscard]] f64 interpolate_position(const struct ipts_pen_dft_window_row &row) const
+	[[nodiscard]] f64 interpolate_position(const ipts::protocol::dft::Row &row) const
 	{
 		// assume the center component has the max amplitude
-		u8 maxi = IPTS_DFT_NUM_COMPONENTS / 2;
+		u8 maxi = ipts::protocol::dft::NUM_COMPONENTS / 2;
 
 		// off-screen components are always zero, don't use them
 		f64 mind = -0.5;
 		f64 maxd = 0.5;
 
-		if (gsl::at(row.real, maxi - 1) == 0 && gsl::at(row.imag, maxi - 1) == 0) {
+		if (row.real.at(maxi - 1) == 0 && row.imag.at(maxi - 1) == 0) {
 			maxi++;
 			mind = -1;
-		} else if (gsl::at(row.real, maxi + 1) == 0 && gsl::at(row.imag, maxi + 1) == 0) {
+		} else if (row.real.at(maxi + 1) == 0 && row.imag.at(maxi + 1) == 0) {
 			maxi--;
 			maxd = 1;
 		}
 
 		// get phase-aligned amplitudes of the three center components
-		const f64 amp = std::hypot(gsl::at(row.real, maxi), gsl::at(row.imag, maxi));
+		const f64 amp = std::hypot(row.real.at(maxi), row.imag.at(maxi));
+
 		if (amp < casts::to<f64>(m_config.dft_position_min_amp))
 			return casts::to<f64>(NAN);
 
-		const f64 sin = gsl::at(row.real, maxi) / amp;
-		const f64 cos = gsl::at(row.imag, maxi) / amp;
+		const f64 sin = row.real.at(maxi) / amp;
+		const f64 cos = row.imag.at(maxi) / amp;
 
 		std::array<f64, 3> x = {
-			sin * gsl::at(row.real, maxi - 1) + cos * gsl::at(row.imag, maxi - 1),
+			sin * row.real.at(maxi - 1) + cos * row.imag.at(maxi - 1),
 			amp,
-			sin * gsl::at(row.real, maxi + 1) + cos * gsl::at(row.imag, maxi + 1),
+			sin * row.real.at(maxi + 1) + cos * row.imag.at(maxi + 1),
 		};
 
 		// convert the amplitudes into something we can fit a parabola to
@@ -270,7 +356,7 @@ private:
 		u64 maxm = 0;
 
 		for (u8 i = 0; i < rows; i++) {
-			const u64 m = dft.x.at(i).magnitude + dft.y.at(i).magnitude;
+			const u64 m = dft.x[i].magnitude + dft.y[i].magnitude;
 
 			if (m > maxm) {
 				maxm = m;
@@ -303,12 +389,12 @@ private:
 			real.at(i) = 0;
 			imag.at(i) = 0;
 
-			for (u8 j = 0; j < IPTS_DFT_NUM_COMPONENTS; j++) {
-				const struct ipts_pen_dft_window_row &x = dft.x.at(maxi + i - 1);
-				const struct ipts_pen_dft_window_row &y = dft.y.at(maxi + i - 1);
+			for (u8 j = 0; j < ipts::protocol::dft::NUM_COMPONENTS; j++) {
+				const ipts::protocol::dft::Row &x = dft.x[maxi + i - 1];
+				const ipts::protocol::dft::Row &y = dft.y[maxi + i - 1];
 
-				real.at(i) += gsl::at(x.real, j) + gsl::at(y.real, j);
-				imag.at(i) += gsl::at(x.imag, j) + gsl::at(y.imag, j);
+				real.at(i) += x.real.at(j) + y.real.at(j);
+				imag.at(i) += x.imag.at(j) + y.imag.at(j);
 			}
 		}
 
@@ -332,6 +418,9 @@ private:
 		m_stylus.contact = false;
 		m_stylus.button = false;
 		m_stylus.rubber = false;
+
+		m_mppv2_in_contact = std::nullopt;
+		m_mppv2_button_or_eraser = std::nullopt;
 	}
 };
 

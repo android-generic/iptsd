@@ -4,10 +4,12 @@
 #define IPTSD_CORE_LINUX_DEVICE_RUNNER_HPP
 
 #include "config-loader.hpp"
+#include "errors.hpp"
 #include "hidraw-device.hpp"
 
 #include <common/casts.hpp>
 #include <common/chrono.hpp>
+#include <common/error.hpp>
 #include <core/generic/application.hpp>
 #include <ipts/data.hpp>
 #include <ipts/device.hpp>
@@ -51,8 +53,8 @@ private:
 public:
 	template <class... Args>
 	DeviceRunner(const std::filesystem::path &path, Args... args)
-		: m_device {std::make_shared<HidrawDevice>(path)}
-		, m_ipts {m_device}
+		: m_device {std::make_shared<HidrawDevice>(path)},
+		  m_ipts {m_device}
 	{
 		DeviceInfo info {};
 		info.vendor = m_device->vendor();
@@ -81,6 +83,9 @@ public:
 	 */
 	T &application()
 	{
+		if (!m_application.has_value())
+			throw common::Error<Error::RunnerInitError> {};
+
 		return m_application.value();
 	}
 
@@ -102,7 +107,7 @@ public:
 	bool run()
 	{
 		if (!m_application.has_value())
-			throw std::runtime_error("Init error: Application is null");
+			throw common::Error<Error::RunnerInitError> {};
 
 		// Enable multitouch mode
 		m_ipts.set_mode(ipts::Mode::Multitouch);
@@ -120,14 +125,15 @@ public:
 
 			try {
 				const isize size = m_device->read(m_buffer);
+				const gsl::span<u8> data {m_buffer.data(),
+				                          casts::to_unsigned(size)};
 
 				// Does this report contain touch data?
 				if (!m_ipts.is_touch_data(m_buffer))
 					continue;
 
-				m_application->process(
-					gsl::span<u8>(m_buffer.data(), casts::to_unsigned(size)));
-			} catch (std::exception &e) {
+				m_application->process(data);
+			} catch (const std::exception &e) {
 				spdlog::warn(e.what());
 
 				// Sleep for a moment to let the device get back into normal state.
@@ -149,7 +155,7 @@ public:
 		try {
 			// Disable multitouch mode
 			m_ipts.set_mode(ipts::Mode::Singletouch);
-		} catch (std::exception &e) {
+		} catch (const std::exception &e) {
 			spdlog::error(e.what());
 		}
 

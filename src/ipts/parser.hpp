@@ -4,7 +4,13 @@
 #define IPTSD_IPTS_PARSER_HPP
 
 #include "data.hpp"
-#include "protocol.hpp"
+#include "protocol/dft.hpp"
+#include "protocol/heatmap.hpp"
+#include "protocol/hid.hpp"
+#include "protocol/legacy.hpp"
+#include "protocol/metadata.hpp"
+#include "protocol/report.hpp"
+#include "protocol/stylus.hpp"
 
 #include <common/casts.hpp>
 #include <common/reader.hpp>
@@ -12,13 +18,8 @@
 
 #include <gsl/gsl>
 
-#include <array>
-#include <bitset>
-#include <cstddef>
 #include <functional>
-#include <memory>
 #include <optional>
-#include <vector>
 
 namespace iptsd::ipts {
 
@@ -37,9 +38,8 @@ public:
 	std::function<void(const Metadata &)> on_metadata;
 
 private:
-	struct ipts_dimensions m_dim {};
-	struct ipts_timestamp m_time {};
-	struct ipts_pen_metadata m_pen_meta {};
+	protocol::heatmap::Dimensions m_dim {};
+	protocol::dft::Metadata m_dft_meta {};
 
 public:
 	/*!
@@ -51,7 +51,7 @@ public:
 	 */
 	void parse(const gsl::span<u8> data)
 	{
-		this->parse<struct ipts_header>(data);
+		this->parse<protocol::hid::ReportHeader>(data);
 	}
 
 	/*!
@@ -72,106 +72,89 @@ private:
 		Reader reader(data);
 		reader.skip(header);
 
-		this->parse_frame(reader);
+		this->parse_hid_frame(reader);
 	}
 
 	/*!
-	 * Parses the root HID frame.
+	 * Parses an IPTS HID frame.
 	 *
-	 * On newer devices, a touch data report will contain a single HID frame containing other
-	 * HID frames. On older devices this is emulated, by sending a single HID frame with a
-	 * custom data type. Instead of more HID frames, this frame will contain the raw data
-	 * from the IPTS device.
-	 *
-	 * @param[in] reader The chunk of data allocated to the root frame.
-	 */
-	void parse_frame(Reader &reader)
-	{
-		const auto header = reader.read<struct ipts_hid_frame>();
-		Reader sub = reader.sub(header.size - sizeof(header));
-
-		// Check if we are dealing with GuC based or HID based IPTS
-		switch (header.type) {
-		case IPTS_HID_FRAME_TYPE_RAW:
-			this->parse_raw(sub);
-			break;
-		case IPTS_HID_FRAME_TYPE_HID:
-			this->parse_hid(sub);
-			break;
-		default:
-			// TODO: Add handler for unknow data and wire up debug tools
-			break;
-		}
-	}
-
-	/*!
-	 * Parses IPTS raw data.
-	 *
-	 * This data is found on older IPTS devices, who don't natively support HID.
-	 * The data will contain a header, followed by multiple frames. Each frame identifies
-	 * a different family of data (e.g. heatmap or stylus data) and consists of multiple
-	 * reports.
-	 *
-	 * @param[in] reader The chunk of data allocated to the raw data.
-	 */
-	void parse_raw(Reader &reader)
-	{
-		const auto header = reader.read<struct ipts_raw_header>();
-
-		for (u32 i = 0; i < header.frames; i++) {
-			const auto frame = reader.read<struct ipts_raw_frame>();
-			Reader sub = reader.sub(frame.size);
-
-			switch (frame.type) {
-			case IPTS_RAW_FRAME_TYPE_STYLUS:
-			case IPTS_RAW_FRAME_TYPE_HEATMAP:
-				this->parse_reports(sub);
-				break;
-			default:
-				// TODO: Add handler for unknow data and wire up debug tools
-				break;
-			}
-		}
-	}
-
-	/*!
-	 * Parses IPTS HID frames.
-	 *
-	 * This data is found on newer IPTS devices that natively support HID.
-	 * There can be multiple HID frames chained together. Each frame contains
-	 * a certain type of content, how it is structured depends on the frame type.
+	 * These are the top-level data structure in the data received from the device.
+	 * For more information, see @ref protocol::hid::Frame
 	 *
 	 * @param[in] reader The chunk of data allocated to the HID frame.
 	 */
-	void parse_hid(Reader &reader)
+	void parse_hid_frame(Reader &reader)
 	{
-		while (reader.size() > 0) {
-			const auto frame = reader.read<struct ipts_hid_frame>();
-			Reader sub = reader.sub(frame.size - sizeof(frame));
+		const auto frame = reader.read<protocol::hid::Frame>();
+		Reader sub = reader.sub(frame.size - sizeof(frame));
 
-			switch (frame.type) {
-			case IPTS_HID_FRAME_TYPE_HEATMAP:
-				this->parse_heatmap_frame(sub);
-				break;
-			case IPTS_HID_FRAME_TYPE_REPORTS:
-				/*
-				 * On SP7 we receive the following data about once per second:
-				 * 16 00 00 00 00 00 00
-				 *   0b 00 00 00 00 ff 00
-				 *     74 00 04 00 00 00 00 00
-				 * This causes a parse error, because the "0b" should be "0f".
-				 * So let's just ignore these packets.
-				 */
-				if (reader.size() == 4)
-					return;
+		switch (frame.type) {
+		case protocol::hid::FrameType::Hid:
+			this->parse_hid_frames(sub);
+			break;
+		case protocol::hid::FrameType::Heatmap:
+			this->parse_heatmap_frame(sub);
+			break;
+		case protocol::hid::FrameType::Metadata:
+			this->parse_metadata_frame(sub);
+			break;
+		case protocol::hid::FrameType::Legacy:
+			this->parse_legacy_frame(sub);
+			break;
+		case protocol::hid::FrameType::Reports:
+			/*
+			 * On SP7 we receive the following data about once per second:
+			 * 16 00 00 00 00 00 00
+			 *   0b 00 00 00 00 ff 00
+			 *     74 00 04 00 00 00 00 00
+			 * This causes a parse error, because the "0b" should be "0f".
+			 * So let's just ignore these packets.
+			 */
+			if (reader.size() == 4)
+				return;
 
-				this->parse_reports(sub);
-				break;
-			case IPTS_HID_FRAME_TYPE_METADATA:
-				this->parse_metadata(sub);
+			this->parse_report_frames(sub);
+			break;
+		default:
+			// TODO: Add handler for unknown data and wire up debug tools
+			break;
+		}
+	}
+
+	/*!
+	 * Parses a list of IPTS HID frames.
+	 *
+	 * @param[in] reader The chunk of data allocated to the HID frames.
+	 */
+	void parse_hid_frames(Reader &reader)
+	{
+		while (reader.size() > 0)
+			this->parse_hid_frame(reader);
+	}
+
+	/*!
+	 * Parses legacy frames.
+	 *
+	 * Legacy frames are used by older devices, that don't natively support HID.
+	 * For more information, see @ref protocol::legacy::Header
+	 *
+	 * @param[in] reader The chunk of data allocated to the legacy frame.
+	 */
+	void parse_legacy_frame(Reader &reader)
+	{
+		const auto header = reader.read<protocol::legacy::Header>();
+
+		for (u32 i = 0; i < header.elements; i++) {
+			const auto group = reader.read<protocol::legacy::ReportGroup>();
+			Reader sub = reader.sub(group.size);
+
+			switch (group.type) {
+			case protocol::legacy::GroupType::Stylus:
+			case protocol::legacy::GroupType::Touch:
+				this->parse_report_frames(sub);
 				break;
 			default:
-				// TODO: Add handler for unknow data and wire up debug tools
+				// TODO: Add handler for unknown data and wire up debug tools
 				break;
 			}
 		}
@@ -180,157 +163,170 @@ private:
 	/*!
 	 * Parses an IPTS metadata frame.
 	 *
-	 * This data is only found on devices that natively support HID and has to be retrieved
-	 * through a HID feature report.
-	 *
-	 * Once the data is parsed, the @ref on_metadata calback is invoked.
+	 * Metadata frames are returned by a HID feature report on devices that natively support
+	 * HID. Once the data is parsed, the @ref on_metadata callback will be invoked.
 	 *
 	 * @param[in] reader The chunk of data allocated to the metadata frame.
 	 */
-	void parse_metadata(Reader &reader) const
+	void parse_metadata_frame(Reader &reader) const
 	{
 		Metadata m {};
 
-		m.size = reader.read<struct ipts_touch_metadata_size>();
+		m.dimensions = reader.read<protocol::metadata::Dimensions>();
 		m.unknown_byte = reader.read<u8>();
-		m.transform = reader.read<struct ipts_touch_metadata_transform>();
-		m.unknown = reader.read<struct ipts_touch_metadata_unknown>();
+		m.transform = reader.read<protocol::metadata::Transform>();
+		m.unknown = reader.read<protocol::metadata::Unknown>();
 
 		if (this->on_metadata)
 			this->on_metadata(m);
 	}
 
 	/*!
-	 * Parses IPTS reports.
+	 * Parses an IPTS report frame.
 	 *
-	 * Reports can be found on both types of devices (both HID-native and not).
-	 * They are found inside of a frame structure and describe different aspects
-	 * of the data family described by the frame. The frame contains no indication
-	 * about the amount of reports, only their combined size.
+	 * Report frames can be found inside of HID and legacy frames. They contain very specific
+	 * data from the touchscreen, such as stylus coordinates or capacitive heatmaps.
 	 *
-	 * @param[in] reader The chunk of data allocated to the list of reports.
+	 * @param[in] reader The chunk of data allocated to the report frame.
 	 */
-	void parse_reports(Reader &reader)
+	void parse_report_frame(Reader &reader)
 	{
-		while (reader.size() > 0) {
-			const auto report = reader.read<struct ipts_report>();
-			Reader sub = reader.sub(report.size);
+		const auto frame = reader.read<protocol::report::Frame>();
+		Reader sub = reader.sub(frame.size);
 
-			switch (report.type) {
-			case IPTS_REPORT_TYPE_STYLUS_V1:
-				this->parse_stylus_v1(sub);
-				break;
-			case IPTS_REPORT_TYPE_STYLUS_V2:
-				this->parse_stylus_v2(sub);
-				break;
-			case IPTS_REPORT_TYPE_DIMENSIONS:
-				this->parse_dimensions(sub);
-				break;
-			case IPTS_REPORT_TYPE_TIMESTAMP:
-				this->parse_timestamp(sub);
-				break;
-			case IPTS_REPORT_TYPE_HEATMAP:
-				this->parse_heatmap_data(sub);
-				break;
-			case IPTS_REPORT_TYPE_PEN_METADATA:
-				this->parse_pen_metadata(sub);
-				break;
-			case IPTS_REPORT_TYPE_PEN_DFT_WINDOW:
-				this->parse_dft_window(sub);
-				break;
-			default:
-				// TODO: Add handler for unknow data and wire up debug tools
-				break;
-			}
+		switch (frame.type) {
+		case protocol::report::Type::StylusMPP_1_0:
+			this->parse_stylus_mpp_1_0(sub);
+			break;
+		case protocol::report::Type::StylusMPP_1_51:
+			this->parse_stylus_mpp_1_51(sub);
+			break;
+		case protocol::report::Type::HeatmapDimensions:
+			this->parse_heatmap_dimensions(sub);
+			break;
+		case protocol::report::Type::HeatmapData:
+			this->parse_heatmap_data(sub);
+			break;
+		case protocol::report::Type::DftMetadata:
+			this->parse_dft_metadata(sub);
+			break;
+		case protocol::report::Type::DftWindow:
+			this->parse_dft_window(sub);
+			break;
+		default:
+			// TODO: Add handler for unknown data and wire up debug tools
+			break;
 		}
 	}
 
 	/*!
-	 * Parses a first generation stylus report.
+	 * Parses a list of IPTS report frames.
 	 *
-	 * These reports are found on devices with a stylus that does not
-	 * support tilt information, and that only supports 1024 levels of pressure.
-	 *
-	 * The stylus report can contain multiple elements, each describing a different
-	 * sample of the stylus state and position from a 5 millisecond window.
-	 * For the last element, the @ref on_stylus callback will be invoked. The other
-	 * elements are dropped, to prevent jitter in the output. The 1024 pressure levels
-	 *  will be scaled to the same 4096 levels that newer devices support.
-	 *
-	 * @param[in] reader The chunk of data allocated to the report.
+	 * @param[in] reader The chunk of data allocated to the list of report frames.
 	 */
-	void parse_stylus_v1(Reader &reader) const
+	void parse_report_frames(Reader &reader)
 	{
-		StylusData stylus;
-
-		const auto stylus_report = reader.read<struct ipts_stylus_report>();
-		stylus.serial = stylus_report.serial;
-
-		for (u8 i = 0; i < stylus_report.elements - 1; i++)
-			reader.skip(sizeof(struct ipts_stylus_data_v1));
-
-		const auto data = reader.read<struct ipts_stylus_data_v1>();
-
-		const std::bitset<8> mode {data.mode};
-		stylus.proximity = mode[IPTS_STYLUS_REPORT_MODE_BIT_PROXIMITY];
-		stylus.button = mode[IPTS_STYLUS_REPORT_MODE_BIT_BUTTON];
-		stylus.rubber = mode[IPTS_STYLUS_REPORT_MODE_BIT_RUBBER];
-
-		stylus.x = casts::to<f64>(data.x) / IPTS_MAX_X;
-		stylus.y = casts::to<f64>(data.y) / IPTS_MAX_Y;
-		stylus.pressure = casts::to<f64>(data.pressure) / IPTS_MAX_PRESSURE_V1;
-		stylus.azimuth = 0;
-		stylus.altitude = 0;
-		stylus.timestamp = 0;
-
-		stylus.contact = stylus.pressure > 0;
-
-		if (this->on_stylus)
-			this->on_stylus(stylus);
+		while (reader.size() > 0)
+			this->parse_report_frame(reader);
 	}
 
 	/*!
-	 * Parses a second generation stylus report.
+	 * Parses an MPP (Microsoft Pen Protocol) 1.0 stylus report.
 	 *
-	 * These reports are found on devices with a stylus with support for tilt
-	 * and 4096 levels of pressure.
+	 * These support 1024 levels of pressure, and have no tilt information.
 	 *
-	 * The stylus report can contain multiple elements, each describing a different
-	 * sample of the stylus state and position from a 5 millisecond window.
-	 * For the last element, the @ref on_stylus callback will be invoked. The other
-	 * elements are dropped, to prevent jitter in the output.
+	 * Stylus reports can contains multiple samples of the stylus state from a 5
+	 * millisecond window. Only the last sample is processed, the others are dropped to
+	 * prevent a jittering output.
 	 *
-	 * @param[in] reader The chunk of data allocated to the report.
+	 * @param[in] reader The chunk of data allocated to the report frame.
 	 */
-	void parse_stylus_v2(Reader &reader) const
+	void parse_stylus_mpp_1_0(Reader &reader) const
 	{
-		StylusData stylus;
+		const auto report = reader.read<protocol::stylus::Report>();
 
-		const auto stylus_report = reader.read<struct ipts_stylus_report>();
-		stylus.serial = stylus_report.serial;
+		for (u8 i = 0; i < report.samples - 1; i++)
+			reader.skip(sizeof(protocol::stylus::SampleMPP_1_0));
 
-		for (u8 i = 0; i < stylus_report.elements - 1; i++)
-			reader.skip(sizeof(struct ipts_stylus_data_v2));
+		const auto sample = reader.read<protocol::stylus::SampleMPP_1_0>();
 
-		const auto data = reader.read<struct ipts_stylus_data_v2>();
+		if (!this->on_stylus)
+			return;
 
-		const std::bitset<16> mode(data.mode);
-		stylus.proximity = mode[IPTS_STYLUS_REPORT_MODE_BIT_PROXIMITY];
-		stylus.button = mode[IPTS_STYLUS_REPORT_MODE_BIT_BUTTON];
-		stylus.rubber = mode[IPTS_STYLUS_REPORT_MODE_BIT_RUBBER];
+		StylusData data {};
+		data.serial = report.serial;
 
-		stylus.x = casts::to<f64>(data.x) / IPTS_MAX_X;
-		stylus.y = casts::to<f64>(data.y) / IPTS_MAX_Y;
-		stylus.pressure = casts::to<f64>(data.pressure) / IPTS_MAX_PRESSURE_V2;
-		stylus.timestamp = data.timestamp;
+		data.proximity = sample.state.proximity;
+		data.button = sample.state.button;
+		data.rubber = sample.state.rubber;
 
-		stylus.azimuth = casts::to<f64>(data.azimuth) / 18000.0 * M_PI;
-		stylus.altitude = casts::to<f64>(data.altitude) / 18000.0 * M_PI;
+		// sample.state.contact is always false when the stylus is in eraser mode
+		data.contact = sample.pressure > 0;
 
-		stylus.contact = stylus.pressure > 0;
+		data.x = casts::to<f64>(sample.x);
+		data.y = casts::to<f64>(sample.y);
+		data.pressure = casts::to<f64>(sample.pressure);
 
-		if (this->on_stylus)
-			this->on_stylus(stylus);
+		data.x /= protocol::stylus::MAX_X;
+		data.y /= protocol::stylus::MAX_Y;
+		data.pressure /= protocol::stylus::MAX_PRESSURE_MPP_1_0;
+
+		data.altitude = 0;
+		data.azimuth = 0;
+		data.timestamp = 0;
+
+		this->on_stylus(data);
+	}
+
+	/*!
+	 * Parses an MPP (Microsoft Pen Protocol) 1.51 stylus report.
+	 *
+	 * These support 4096 levels of pressure, and have tilt information.
+	 *
+	 * Stylus reports can contains multiple samples of the stylus state from a 5
+	 * millisecond window. Only the last sample is processed, the others are dropped to
+	 * prevent a jittering output.
+	 *
+	 * @param[in] reader The chunk of data allocated to the report frame.
+	 */
+	void parse_stylus_mpp_1_51(Reader &reader) const
+	{
+		const auto report = reader.read<protocol::stylus::Report>();
+
+		for (u8 i = 0; i < report.samples - 1; i++)
+			reader.skip(sizeof(protocol::stylus::SampleMPP_1_51));
+
+		const auto sample = reader.read<protocol::stylus::SampleMPP_1_51>();
+
+		if (!this->on_stylus)
+			return;
+
+		StylusData data {};
+		data.serial = report.serial;
+		data.timestamp = sample.timestamp;
+
+		data.proximity = sample.state.proximity;
+		data.button = sample.state.button;
+		data.rubber = sample.state.rubber;
+
+		// sample.state.contact is always false when the stylus is in eraser mode
+		data.contact = sample.pressure > 0;
+
+		data.x = casts::to<f64>(sample.x);
+		data.y = casts::to<f64>(sample.y);
+		data.pressure = casts::to<f64>(sample.pressure);
+
+		data.x /= protocol::stylus::MAX_X;
+		data.y /= protocol::stylus::MAX_Y;
+		data.pressure /= protocol::stylus::MAX_PRESSURE_MPP_1_51;
+
+		data.altitude = casts::to<f64>(sample.altitude);
+		data.azimuth = casts::to<f64>(sample.azimuth);
+
+		data.altitude /= 18000.0 / M_PI;
+		data.azimuth /= 18000.0 / M_PI;
+
+		this->on_stylus(data);
 	}
 
 	/*!
@@ -344,9 +340,9 @@ private:
 	 *
 	 * @param[in] reader The chunk of data allocated to the report.
 	 */
-	void parse_dimensions(Reader &reader)
+	void parse_heatmap_dimensions(Reader &reader)
 	{
-		m_dim = reader.read<struct ipts_dimensions>();
+		m_dim = reader.read<protocol::heatmap::Dimensions>();
 
 		// On newer devices, z_max may be 0, lets use a sane value instead.
 		if (m_dim.z_max == 0)
@@ -354,35 +350,24 @@ private:
 	}
 
 	/*!
-	 * Parses a heatmap timestamp report.
+	 * Parses a heatmap report. The payload is the actual heatmap data.
+	 *
+	 * The heatmaps contain measurements of the electrical resistance on the touchscreen.
+	 * Because your finger is conductive, putting it on the screen lowers the resistance.
+	 * So a touch is represented by a low value, and no touch is represented by a high value.
 	 *
 	 * @param[in] reader The chunk of data allocated to the report.
 	 */
-	void parse_timestamp(Reader &reader)
-	{
-		m_time = reader.read<struct ipts_timestamp>();
-	}
-
-	/*!
-	 * Parses a heatmap report.
-	 *
-	 * This report contains the actual heatmap data. IPTS sends
-	 * heatmaps "inverted", e.g. a contact is represented by a low
-	 * value, and no contact is represented by a high value.
-	 *
-	 * After the data was parsed, the @ref on_heatmap callback will be invoked.
-	 *
-	 * @param[in] reader The chunk of data allocated to the report.
-	 */
-	void parse_heatmap_data(Reader &reader)
+	void parse_heatmap_data(Reader &reader) const
 	{
 		Heatmap heatmap {};
 
-		const usize size = casts::to<usize>(m_dim.width) * m_dim.height;
+		heatmap.rows = m_dim.rows;
+		heatmap.columns = m_dim.columns;
+		heatmap.min = m_dim.z_min;
+		heatmap.max = m_dim.z_max;
 
-		heatmap.data = reader.subspan(size);
-		heatmap.dim = m_dim;
-		heatmap.time = m_time;
+		heatmap.data = reader.subspan<u8>(casts::to<usize>(m_dim.rows) * m_dim.columns);
 
 		if (this->on_heatmap)
 			this->on_heatmap(heatmap);
@@ -391,14 +376,14 @@ private:
 	/*!
 	 * Parses a heatmap frame.
 	 *
-	 * On HID-native devices, the heatmap is not passed as a report. Instead it is passed
-	 * inside of a HID frame with a custom frame and header.
+	 * On HID-native devices, the heatmap is not passed as a report.
+	 * Instead, it is passed inside of a HID frame.
 	 *
 	 * @param[in] reader The chunk of data allocated to the frame.
 	 */
-	void parse_heatmap_frame(Reader &reader)
+	void parse_heatmap_frame(Reader &reader) const
 	{
-		const auto header = reader.read<struct ipts_heatmap_header>();
+		const auto header = reader.read<protocol::heatmap::Frame>();
 		Reader sub = reader.sub(header.size);
 
 		this->parse_heatmap_data(sub);
@@ -412,49 +397,39 @@ private:
 	 * antenna measurements and leave it to the client to determine the exact position
 	 * of the stylus.
 	 *
-	 * After the data was parsed, the @ref on_dft callback will be invoked.
-
 	 * @param[in] reader The chunk of data allocated to the report.
 	 */
-	void parse_dft_window(Reader &reader)
+	void parse_dft_window(Reader &reader) const
 	{
 		DftWindow dft {};
-		const auto window = reader.read<struct ipts_pen_dft_window>();
+		const auto window = reader.read<protocol::dft::Window>();
 
-		for (usize i = 0; i < window.num_rows; i++)
-			dft.x.at(i) = reader.read<struct ipts_pen_dft_window_row>();
+		dft.x = reader.subspan<protocol::dft::Row>(window.num_rows);
+		dft.y = reader.subspan<protocol::dft::Row>(window.num_rows);
 
-		for (usize i = 0; i < window.num_rows; i++)
-			dft.y.at(i) = reader.read<struct ipts_pen_dft_window_row>();
-
-		dft.rows = window.num_rows;
 		dft.type = window.data_type;
+		dft.width = m_dim.columns;
+		dft.height = m_dim.rows;
 
-		if (window.seq_num == m_pen_meta.seq_num &&
-		    window.data_type == m_pen_meta.data_type) {
-			const auto g = m_pen_meta.group_counter;
-			dft.group = g;
+		if (window.seq_num == m_dft_meta.seq_num &&
+		    window.data_type == m_dft_meta.data_type) {
+			dft.group = casts::unpack(m_dft_meta.group_counter);
 		}
 
-		dft.dim = m_dim;
-		dft.time = m_time;
-
-		if (!this->on_dft)
-			return;
-
-		this->on_dft(dft);
+		if (this->on_dft)
+			this->on_dft(dft);
 	}
 
 	/*!
-	 * Parses a pen metadata report.
+	 * Parses a DFT metadata report.
 	 *
-	 * A pen metadata report precedes each DFT report.
-
+	 * A metadata report precedes each window report.
+	 *
 	 * @param[in] reader The chunk of data allocated to the report.
 	 */
-	void parse_pen_metadata(Reader &reader)
+	void parse_dft_metadata(Reader &reader)
 	{
-		m_pen_meta = reader.read<struct ipts_pen_metadata>();
+		m_dft_meta = reader.read<protocol::dft::Metadata>();
 	}
 };
 

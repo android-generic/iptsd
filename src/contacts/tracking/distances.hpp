@@ -8,7 +8,6 @@
 #include <common/casts.hpp>
 #include <common/types.hpp>
 
-#include <limits>
 #include <vector>
 
 namespace iptsd::contacts::tracking::distances {
@@ -25,8 +24,8 @@ namespace iptsd::contacts::tracking::distances {
  */
 template <class Derived>
 void calculate(const std::vector<Contact<typename DenseBase<Derived>::Scalar>> &x,
-	       const std::vector<Contact<typename DenseBase<Derived>::Scalar>> &y,
-	       DenseBase<Derived> &out)
+               const std::vector<Contact<typename DenseBase<Derived>::Scalar>> &y,
+               DenseBase<Derived> &out)
 {
 	using T = typename DenseBase<Derived>::Scalar;
 

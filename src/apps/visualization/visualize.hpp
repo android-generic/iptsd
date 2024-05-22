@@ -20,7 +20,6 @@
 #include <limits>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace iptsd::apps::visualization {
@@ -41,8 +40,8 @@ protected:
 
 public:
 	Visualize(const core::Config &config,
-		  const core::DeviceInfo &info,
-		  std::optional<const ipts::Metadata> metadata)
+	          const core::DeviceInfo &info,
+	          const std::optional<const ipts::Metadata> &metadata)
 		: core::Application(config, info, metadata) {};
 
 	void on_contacts(const std::vector<contacts::Contact<f64>> & /* unused */) override
@@ -58,10 +57,10 @@ public:
 			for (Eigen::Index x = 0; x < cols; x++) {
 				const f64 value = m_heatmap(y, x);
 
-				const u8 max = std::numeric_limits<u8>::max();
+				constexpr u8 max = std::numeric_limits<u8>::max();
 				const u8 v = casts::to<u8>(std::round(value * max));
 
-				const u32 a = max;
+				constexpr u32 a = max;
 				const u32 r = v;
 				const u32 g = v;
 				const u32 b = v;
@@ -112,7 +111,7 @@ public:
 		const i32 cols = casts::to<i32>(m_argb.cols());
 		const i32 rows = casts::to<i32>(m_argb.rows());
 
-		const auto format = Cairo::FORMAT_ARGB32;
+		constexpr auto format = Cairo::FORMAT_ARGB32;
 		const auto stride = Cairo::ImageSurface::format_stride_for_width(format, cols);
 
 		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -156,13 +155,14 @@ public:
 		m_cairo->fill();
 	}
 
-	void draw_contacts()
+	void draw_contacts() const
 	{
 		const f64 diag = m_size.cast<f64>().hypotNorm();
 
 		// Select Font
-		m_cairo->select_font_face("monospace", Cairo::FONT_SLANT_NORMAL,
-					  Cairo::FONT_WEIGHT_NORMAL);
+		m_cairo->select_font_face("monospace",
+		                          Cairo::FONT_SLANT_NORMAL,
+		                          Cairo::FONT_WEIGHT_NORMAL);
 		m_cairo->set_font_size(24.0);
 
 		for (const auto &contact : m_contacts) {
@@ -190,7 +190,7 @@ public:
 
 			// Center the text at the mean point of the contact
 			m_cairo->move_to(mean.x() - (extends.x_bearing + extends.width / 2),
-					 mean.y() - (extends.y_bearing + extends.height / 2));
+			                 mean.y() - (extends.y_bearing + extends.height / 2));
 			m_cairo->save();
 
 			m_cairo->show_text(index);

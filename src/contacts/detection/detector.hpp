@@ -4,17 +4,22 @@
 #define IPTSD_CONTACTS_DETECTION_DETECTOR_HPP
 
 #include "../contact.hpp"
-#include "algorithms.hpp"
+#include "algorithms/cluster.hpp"
+#include "algorithms/convolution.hpp"
+#include "algorithms/ellipse.hpp"
+#include "algorithms/gaussian.hpp"
+#include "algorithms/kernels.hpp"
+#include "algorithms/maximas.hpp"
+#include "algorithms/neutral.hpp"
+#include "algorithms/overlaps.hpp"
 #include "config.hpp"
 
 #include <common/casts.hpp>
-#include <common/constants.hpp>
 #include <common/types.hpp>
 
 #include <gsl/gsl>
 
 #include <cmath>
-#include <iostream>
 #include <type_traits>
 #include <vector>
 
@@ -30,7 +35,7 @@ private:
 	Config<T> m_config;
 
 	// The diagonal of the heatmap.
-	T m_input_diagonal = Zero<T>();
+	T m_input_diagonal = casts::to<T>(0);
 
 	// The heatmap with the neutral value subtracted.
 	Image<T> m_img_neutral {};
@@ -60,7 +65,7 @@ private:
 	usize m_counter = 0;
 
 	// The cached neutral value of the heatmap.
-	T m_neutral = Zero<T>();
+	T m_neutral = casts::to<T>(0);
 
 public:
 	Detector(Config<T> config) : m_config {std::move(config)} {};
@@ -104,15 +109,16 @@ public:
 
 		// Recalculate the neutral value if neccessary
 		if (m_counter == 0) {
-			m_neutral = neutral::calculate(heatmap, m_config.neutral_value_algorithm,
-						       m_config.neutral_value_offset);
+			m_neutral = neutral::calculate(heatmap,
+			                               m_config.neutral_value_algorithm,
+			                               m_config.neutral_value_offset);
 		}
 
 		// Update counter
 		m_counter = (m_counter + 1) % m_config.neutral_value_backoff;
 
 		// Subtract the neutral value from the whole heatmap
-		m_img_neutral = (heatmap - m_neutral).max(Zero<T>());
+		m_img_neutral = (heatmap - m_neutral).max(casts::to<T>(0));
 
 		// Blur the heatmap slightly
 		convolution::run(m_img_neutral, m_kernel_blur, m_img_blurred);
@@ -156,7 +162,12 @@ public:
 			const Vector2<Eigen::Index> size = cluster.sizes() + one;
 
 			gaussian::Parameters<TFit> params {
-				true, 1, mean, prec, cluster, Image<TFit> {size.y(), size.x()},
+				true,
+				1,
+				mean,
+				prec,
+				cluster,
+				Image<TFit> {size.y(), size.x()},
 			};
 
 			m_fitting_params.push_back(std::move(params));
@@ -186,13 +197,14 @@ public:
 				orientation /= gsl::narrow_cast<TFit>(M_PI);
 			}
 
-			contacts.push_back(
-				Contact<T> {mean.template cast<T>(), size.template cast<T>(),
-					    gsl::narrow_cast<T>(orientation), m_config.normalize});
+			contacts.push_back(Contact<T> {mean.template cast<T>(),
+			                               size.template cast<T>(),
+			                               gsl::narrow_cast<T>(orientation),
+			                               m_config.normalize});
 		}
 	}
 };
 
 } // namespace iptsd::contacts::detection
 
-#endif // IPTSD_CONTACTS_BASIC_DETECTOR_HPP
+#endif // IPTSD_CONTACTS_DETECTION_DETECTOR_HPP

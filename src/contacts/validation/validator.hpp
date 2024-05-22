@@ -6,14 +6,9 @@
 #include "../contact.hpp"
 #include "config.hpp"
 
-#include <common/constants.hpp>
 #include <common/types.hpp>
 
-#include <functional>
-#include <map>
-#include <optional>
 #include <type_traits>
-#include <unordered_map>
 #include <vector>
 
 namespace iptsd::contacts::validation {

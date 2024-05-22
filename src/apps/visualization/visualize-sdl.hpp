@@ -17,7 +17,6 @@
 #include <gsl/gsl>
 
 #include <cstring>
-#include <memory>
 #include <optional>
 
 namespace iptsd::apps::visualization {
@@ -37,8 +36,8 @@ private:
 
 public:
 	VisualizeSDL(const core::Config &config,
-		     const core::DeviceInfo &info,
-		     std::optional<const ipts::Metadata> metadata)
+	             const core::DeviceInfo &info,
+	             const std::optional<const ipts::Metadata> &metadata)
 		: Visualize(config, info, metadata)
 	{
 		SDL_Init(SDL_INIT_VIDEO);
@@ -47,15 +46,18 @@ public:
 	void on_start() override
 	{
 		// Create an SDL window
-		const u32 flags = SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_ALLOW_HIGHDPI;
+		constexpr u32 flags = SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_ALLOW_HIGHDPI;
 		SDL_CreateWindowAndRenderer(0, 0, flags, &m_window, &m_renderer);
 
 		// Get the screen size.
 		SDL_GetRendererOutputSize(m_renderer, &m_size.x(), &m_size.y());
 
 		// Create a texture that will be rendered later
-		m_rtex = SDL_CreateTexture(m_renderer, SDL_PIXELFORMAT_ARGB8888,
-					   SDL_TEXTUREACCESS_STREAMING, m_size.x(), m_size.y());
+		m_rtex = SDL_CreateTexture(m_renderer,
+		                           SDL_PIXELFORMAT_ARGB8888,
+		                           SDL_TEXTUREACCESS_STREAMING,
+		                           m_size.x(),
+		                           m_size.y());
 
 		// Create a texture for drawing.
 		m_tex = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, m_size.x(), m_size.y());

@@ -3,10 +3,10 @@
 #ifndef IPTSD_CONTACTS_DETECTION_ALGORITHMS_NEUTRAL_HPP
 #define IPTSD_CONTACTS_DETECTION_ALGORITHMS_NEUTRAL_HPP
 
-#include <common/types.hpp>
+#include "errors.hpp"
 
-#include <type_traits>
-#include <unordered_map>
+#include <common/error.hpp>
+#include <common/types.hpp>
 
 namespace iptsd::contacts::detection::neutral {
 
@@ -51,7 +51,7 @@ typename DenseBase<Derived>::Scalar statistical_mode(const DenseBase<Derived> &d
 /*
  * The algorithm that will be used to calculate the neutral value.
  */
-enum class Algorithm {
+enum class Algorithm : u8 {
 	// The most common element (statistical mode) will be used.
 	MODE,
 
@@ -75,8 +75,8 @@ enum class Algorithm {
  */
 template <class Derived>
 typename DenseBase<Derived>::Scalar calculate(const DenseBase<Derived> &heatmap,
-					      const Algorithm algorithm,
-					      const typename DenseBase<Derived>::Scalar offset)
+                                              const Algorithm algorithm,
+                                              const typename DenseBase<Derived>::Scalar offset)
 {
 	switch (algorithm) {
 	case Algorithm::MODE:
@@ -86,7 +86,7 @@ typename DenseBase<Derived>::Scalar calculate(const DenseBase<Derived> &heatmap,
 	case Algorithm::CONSTANT:
 		return offset;
 	default:
-		throw std::runtime_error("Invalid neutral mode!");
+		throw common::Error<Error::InvalidNeutralMode> {};
 	}
 }
 

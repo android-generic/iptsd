@@ -7,13 +7,11 @@
 #include "config.hpp"
 
 #include <common/casts.hpp>
-#include <common/constants.hpp>
 #include <common/types.hpp>
 
 #include <gsl/gsl>
 
 #include <algorithm>
-#include <deque>
 #include <iterator>
 #include <type_traits>
 #include <vector>
@@ -64,7 +62,6 @@ private:
 	 * Stabilize a single contact.
 	 *
 	 * @param[in,out] contact The contact to stabilize.
-	 * @param[in] frame The previous frame.
 	 */
 	void stabilize_contact(Contact<T> &contact) const
 	{
@@ -172,7 +169,7 @@ private:
 
 		const Vector2<T> thresh = m_config.orientation_threshold.value();
 
-		const T max = current.normalized ? One<T>() : gsl::narrow_cast<T>(M_PI);
+		const T max = current.normalized ? casts::to<T>(1) : gsl::narrow_cast<T>(M_PI);
 
 		// The angle difference in both directions.
 		const T d1 = std::abs(current.orientation - last.orientation);

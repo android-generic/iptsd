@@ -3,25 +3,23 @@
 #ifndef IPTSD_HID_REPORT_HPP
 #define IPTSD_HID_REPORT_HPP
 
-#include "spec.hpp"
+#include "errors.hpp"
 #include "usage.hpp"
 
 #include <common/casts.hpp>
+#include <common/error.hpp>
 #include <common/types.hpp>
 
 #include <algorithm>
-#include <iterator>
 #include <optional>
-#include <stdexcept>
 #include <unordered_set>
-#include <vector>
 
 namespace iptsd::hid {
 
 /*
  * The type of a report.
  */
-enum class ReportType {
+enum class ReportType : u8 {
 	// Data that is coming from the device
 	Input,
 
@@ -50,15 +48,15 @@ private:
 	std::unordered_set<Usage> m_usages;
 
 public:
-	Report(ReportType type,
-	       std::optional<u8> report_id,
-	       u32 report_count,
-	       u32 report_size,
+	Report(const ReportType type,
+	       const std::optional<u8> report_id,
+	       const u32 report_count,
+	       const u32 report_size,
 	       const std::unordered_set<Usage> &usages)
-		: m_type {type}
-		, m_report_id {report_id}
-		, m_report_size {casts::to<u64>(report_count) * report_size}
-		, m_usages {usages} {};
+		: m_type {type},
+		  m_report_id {report_id},
+		  m_report_size {casts::to<u64>(report_count) * report_size},
+		  m_usages {usages} {};
 
 	/*!
 	 * The type of the HID report.
@@ -84,7 +82,7 @@ public:
 		return m_report_size;
 	}
 
-	/*
+	/*!
 	 * The usage tags of the HID report.
 	 */
 	[[nodiscard]] const std::unordered_set<Usage> &usages() const
@@ -98,7 +96,7 @@ public:
 	 * @param[in] value The usage tag to search for.
 	 * @return Whether the combination of Usage / Usage Page applies to this report.
 	 */
-	[[nodiscard]] bool find_usage(Usage value) const
+	[[nodiscard]] bool find_usage(const Usage value) const
 	{
 		return this->find_usage(value.page, value.value);
 	}
@@ -110,10 +108,11 @@ public:
 	 * @param[in] value The usage tag to search for.
 	 * @return Whether the combination of Usage / Usage Page applies to this report.
 	 */
-	[[nodiscard]] bool find_usage(u16 page, u16 value) const
+	[[nodiscard]] bool find_usage(const u16 page, const u16 value) const
 	{
-		return std::any_of(m_usages.cbegin(), m_usages.cend(),
-				   [&](const Usage &usage) -> bool {
+		return std::any_of(m_usages.cbegin(),
+		                   m_usages.cend(),
+		                   [&](const Usage &usage) -> bool {
 					   return usage.page == page && usage.value == value;
 				   });
 	}
@@ -126,10 +125,10 @@ public:
 	void merge(const Report &other)
 	{
 		if (m_type != other.type())
-			throw std::runtime_error {"Cannot merge two reports of different types"};
+			throw common::Error<Error::ReportMergeTypes> {};
 
 		if (m_report_id != other.id())
-			throw std::runtime_error {"Cannot merge two reports with different IDs"};
+			throw common::Error<Error::ReportMergeIDs> {};
 
 		m_report_size += other.size();
 

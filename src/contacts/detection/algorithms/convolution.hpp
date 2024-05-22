@@ -3,12 +3,11 @@
 #ifndef IPTSD_CONTACTS_DETECTION_ALGORITHMS_CONVOLUTION_HPP
 #define IPTSD_CONTACTS_DETECTION_ALGORITHMS_CONVOLUTION_HPP
 
-#include "optimized/convolution.hpp"
+#include "optimized/convolution.3x3-extend.hpp"
+#include "optimized/convolution.5x5-extend.hpp"
 
 #include <common/casts.hpp>
 #include <common/types.hpp>
-
-#include <type_traits>
 
 namespace iptsd::contacts::detection::convolution {
 
@@ -26,10 +25,12 @@ namespace impl {
  */
 template <class DerivedData, class DerivedKernel>
 void run_generic(const DenseBase<DerivedData> &in,
-		 const DenseBase<DerivedKernel> &kernel,
-		 DenseBase<DerivedData> &out)
+                 const DenseBase<DerivedKernel> &kernel,
+                 DenseBase<DerivedData> &out)
 {
 	using T = typename DenseBase<DerivedKernel>::Scalar;
+
+	constexpr isize size_zero = 0;
 
 	const Eigen::Index cols = in.cols();
 	const Eigen::Index rows = in.rows();
@@ -48,13 +49,13 @@ void run_generic(const DenseBase<DerivedData> &in,
 
 			for (Eigen::Index oy = 0; oy < rows; oy++) {
 				const isize sy = casts::to_signed(oy + ky) - dy;
-				const isize cy = std::clamp(sy, Zero<isize>(), rows - 1);
+				const isize cy = std::clamp(sy, size_zero, rows - 1);
 
 				const Eigen::Index iy = casts::to_eigen(cy);
 
 				for (Eigen::Index ox = 0; ox < cols; ox++) {
 					const isize sx = casts::to_signed(ox + kx) - dx;
-					const isize cx = std::clamp(sx, Zero<isize>(), cols - 1);
+					const isize cx = std::clamp(sx, size_zero, cols - 1);
 
 					const Eigen::Index ix = casts::to_eigen(cx);
 
@@ -81,8 +82,8 @@ void run_generic(const DenseBase<DerivedData> &in,
  */
 template <class DerivedData, class DerivedKernel>
 inline void run(const DenseBase<DerivedData> &in,
-		const DenseBase<DerivedKernel> &kernel,
-		DenseBase<DerivedData> &out)
+                const DenseBase<DerivedKernel> &kernel,
+                DenseBase<DerivedData> &out)
 {
 	constexpr usize Rows = DerivedKernel::RowsAtCompileTime;
 	constexpr usize Cols = DerivedKernel::ColsAtCompileTime;

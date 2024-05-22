@@ -7,28 +7,50 @@
 #include "descriptor.hpp"
 #include "parser.hpp"
 
+#include <common/error.hpp>
 #include <common/types.hpp>
 #include <hid/device.hpp>
 #include <hid/report.hpp>
 
 #include <gsl/gsl>
-#include <gsl/narrow>
 
 #include <algorithm>
 #include <functional>
 #include <memory>
 #include <optional>
-#include <stdexcept>
 #include <vector>
 
 namespace iptsd::ipts {
+namespace impl {
 
-enum class Mode {
+enum class DeviceError : u8 {
+	InvalidDevice,
+	InvalidSetModeReport,
+};
+
+inline std::string format_as(DeviceError err)
+{
+	switch (err) {
+	case DeviceError::InvalidDevice:
+		return "ipts: {} is not an IPTS device!";
+	case DeviceError::InvalidSetModeReport:
+		return "ipts: The report for switching modes on {} is invalid!";
+	default:
+		return "ipts: Invalid error code!";
+	}
+}
+
+} // namespace impl
+
+enum class Mode : u8 {
 	Singletouch = 0,
 	Multitouch = 1,
 };
 
 class Device {
+public:
+	using Error = impl::DeviceError;
+
 private:
 	// The (platform specific) HID device interface
 	std::shared_ptr<hid::Device> m_hid;
@@ -41,21 +63,21 @@ private:
 
 public:
 	Device(std::shared_ptr<hid::Device> hid)
-		: m_hid {std::move(hid)}
-		, m_descriptor {m_hid->descriptor()}
-		, m_touch_data_reports {m_descriptor.find_touch_data_reports()}
+		: m_hid {std::move(hid)},
+		  m_descriptor {m_hid->descriptor()},
+		  m_touch_data_reports {m_descriptor.find_touch_data_reports()}
 	{
 		// Check if the device can switch modes
 		if (!m_descriptor.find_modesetting_report().has_value())
-			throw std::runtime_error {"This device is not an IPTS device!"};
+			throw common::Error<Error::InvalidDevice> {m_hid->name()};
 
 		// Check if the device can send touch data.
 		if (m_descriptor.find_touch_data_reports().empty())
-			throw std::runtime_error {"This device is not an IPTS device!"};
+			throw common::Error<Error::InvalidDevice> {m_hid->name()};
 	};
 
-	/*
-	 *
+	/*!
+	 * The HID descriptor of the IPTS device.
 	 */
 	[[nodiscard]] const Descriptor &descriptor() const
 	{
@@ -117,11 +139,11 @@ public:
 	{
 		const std::optional<hid::Report> report = m_descriptor.find_modesetting_report();
 		if (!report.has_value())
-			throw std::runtime_error {"Could not find IPTS modesetting report"};
+			throw common::Error<Error::InvalidDevice> {m_hid->name()};
 
 		const std::optional<u8> id = report->id();
 		if (!id.has_value())
-			throw std::runtime_error {"Found modesetting report, but no report ID"};
+			throw common::Error<Error::InvalidSetModeReport> {m_hid->name()};
 
 		std::array<u8, 2> buffer {id.value(), gsl::narrow<u8>(mode)};
 		m_hid->set_feature(buffer);
@@ -139,7 +161,8 @@ public:
 			return false;
 
 		return std::any_of(
-			m_touch_data_reports.cbegin(), m_touch_data_reports.cend(),
+			m_touch_data_reports.cbegin(),
+			m_touch_data_reports.cend(),
 			[&](const hid::Report &report) { return report.id() == buffer[0]; });
 	}
 };

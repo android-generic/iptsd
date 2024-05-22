@@ -3,11 +3,14 @@
 #ifndef IPTSD_IPTS_DATA_HPP
 #define IPTSD_IPTS_DATA_HPP
 
-#include "protocol.hpp"
+#include "protocol/dft.hpp"
+#include "protocol/metadata.hpp"
 
 #include <common/types.hpp>
 
 #include <gsl/gsl>
+
+#include <optional>
 
 namespace iptsd::ipts {
 
@@ -27,29 +30,31 @@ struct StylusData {
 };
 
 struct Heatmap {
-	struct ipts_dimensions dim {};
-	struct ipts_timestamp time {};
+	u8 rows = 0;
+	u8 columns = 0;
+
+	u8 min = 0;
+	u8 max = 0;
 
 	gsl::span<u8> data {};
 };
 
 struct DftWindow {
 	std::optional<u32> group = std::nullopt;
-	u8 rows = 0;
-	u8 type = 0;
+	protocol::dft::Type type {};
 
-	struct ipts_dimensions dim {};
-	struct ipts_timestamp time {};
+	u8 width = 0;
+	u8 height = 0;
 
-	std::array<struct ipts_pen_dft_window_row, IPTS_DFT_MAX_ROWS> x {};
-	std::array<struct ipts_pen_dft_window_row, IPTS_DFT_MAX_ROWS> y {};
+	gsl::span<protocol::dft::Row> x {};
+	gsl::span<protocol::dft::Row> y {};
 };
 
 struct Metadata {
-	struct ipts_touch_metadata_size size {};
-	struct ipts_touch_metadata_transform transform {};
+	protocol::metadata::Dimensions dimensions {};
+	protocol::metadata::Transform transform {};
 	u8 unknown_byte = 0;
-	struct ipts_touch_metadata_unknown unknown {};
+	protocol::metadata::Unknown unknown {};
 };
 
 } // namespace iptsd::ipts

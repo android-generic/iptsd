@@ -29,10 +29,10 @@ private:
 public:
 	Dump(const core::Config &config,
 	     const core::DeviceInfo &info,
-	     std::optional<const ipts::Metadata> metadata,
+	     const std::optional<const ipts::Metadata> &metadata,
 	     std::filesystem::path output)
-		: core::Application(config, info, metadata)
-		, m_out {std::move(output)} {};
+		: core::Application(config, info, metadata),
+		  m_out {std::move(output)} {};
 
 	void on_start() override
 	{
@@ -68,7 +68,7 @@ public:
 
 		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
 		m_writer.write(reinterpret_cast<char *>(data.data()),
-			       casts::to<std::streamsize>(size));
+		               casts::to<std::streamsize>(size));
 
 		// Pad the data with zeros, so that we always write a full buffer.
 		std::fill_n(std::ostream_iterator<u8>(m_writer), m_info.buffer_size - size, '\0');

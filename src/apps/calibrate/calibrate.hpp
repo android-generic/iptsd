@@ -3,12 +3,7 @@
 #ifndef IPTSD_APPS_CALIBRATE_CALIBRATE_HPP
 #define IPTSD_APPS_CALIBRATE_CALIBRATE_HPP
 
-#ifdef __ANDROID__
-#include <android_configure.h>
-#else
-#include "configure.h"
-#endif
-
+#include <common/buildopts.hpp>
 #include <common/casts.hpp>
 #include <common/chrono.hpp>
 #include <common/types.hpp>
@@ -50,10 +45,10 @@ private:
 
 public:
 	Calibrate(const core::Config &config,
-		  const core::DeviceInfo &info,
-		  std::optional<const ipts::Metadata> metadata)
-		: core::Application(config, info, metadata)
-		, m_diagonal {std::hypot(config.width, config.height)} {};
+	          const core::DeviceInfo &info,
+	          const std::optional<const ipts::Metadata> &metadata)
+		: core::Application(config, info, metadata),
+		  m_diagonal {std::hypot(config.width, config.height)} {};
 
 	void on_start() override
 	{
@@ -133,13 +128,13 @@ public:
 		spdlog::info("Run the displayed to command to install them, and restart iptsd.");
 		spdlog::info("");
 		spdlog::info("Recommended:");
-		spdlog::info("    sudo cp {} {}/90-calibration.conf", some_slack, IPTSD_CONFIG_DIR);
+		spdlog::info("    sudo cp {} {}/90-calibration.conf", some_slack, common::buildopts::ConfigDir);
 		spdlog::info("");
 		spdlog::info("If iptsd misses inputs:");
-		spdlog::info("    sudo cp {} {}/90-calibration.conf", much_slack, IPTSD_CONFIG_DIR);
+		spdlog::info("    sudo cp {} {}/90-calibration.conf", much_slack, common::buildopts::ConfigDir);
 		spdlog::info("");
 		spdlog::info("For manual finetuning:");
-		spdlog::info("    sudo cp {} {}/90-calibration.conf", no_slack, IPTSD_CONFIG_DIR);
+		spdlog::info("    sudo cp {} {}/90-calibration.conf", no_slack, common::buildopts::ConfigDir);
 		spdlog::info("");
 		spdlog::warn("Running these commands can permanently overwrite a previous calibration!");
 
@@ -161,7 +156,7 @@ public:
 		aspect_max = m_aspect[casts::to<usize>(std::round(max_idx))];
 	}
 
-	void write_file(const std::filesystem::path &out, f64 slack) const
+	void write_file(const std::filesystem::path &out, const f64 slack) const
 	{
 		std::ofstream writer {out};
 

@@ -12,14 +12,14 @@ namespace iptsd::contacts::detection::maximas {
 /*!
  * Searches for all local maxima in the given data.
  *
- * @param[in] heatmap The data to process.
+ * @param[in] data The data to process.
  * @param[in] threshold Only return local maxima whose value is above this threshold.
  * @param[out] maximas A reference to the vector where the found points will be stored.
  */
 template <class Derived>
 void find(const DenseBase<Derived> &data,
-	  typename DenseBase<Derived>::Scalar threshold,
-	  std::vector<Point> &maximas)
+          typename DenseBase<Derived>::Scalar threshold,
+          std::vector<Point> &maximas)
 {
 	using T = typename DenseBase<Derived>::Scalar;
 

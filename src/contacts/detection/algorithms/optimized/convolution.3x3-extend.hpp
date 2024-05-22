@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <common/buildopts.hpp>
 #include <common/casts.hpp>
-#include <common/constants.hpp>
 #include <common/types.hpp>
 
 namespace iptsd::contacts::detection::convolution::impl {
@@ -18,8 +18,8 @@ namespace iptsd::contacts::detection::convolution::impl {
  */
 template <class DerivedData, class DerivedKernel>
 inline void run_3x3(const DenseBase<DerivedData> &in,
-		    const DenseBase<DerivedKernel> &kernel,
-		    DenseBase<DerivedData> &out)
+                    const DenseBase<DerivedKernel> &kernel,
+                    DenseBase<DerivedData> &out)
 {
 	using T = typename DenseBase<DerivedData>::Scalar;
 	using S = typename DenseBase<DerivedKernel>::Scalar;
@@ -32,22 +32,22 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 		const Eigen::Index x = casts::to_eigen(dx + 1);
 		const Eigen::Index y = casts::to_eigen(dy + 1);
 
-#ifdef IPTSD_CONFIG_FORCE_ACCESS_CHECKS
-		return kernel(y, x);
-#else
-		return kernel.coeff(y, x);
-#endif
+		if constexpr (common::buildopts::ForceAccessChecks) {
+			return kernel(y, x);
+		} else {
+			return kernel.coeff(y, x);
+		}
 	};
 
 	const auto d = [&](Eigen::Index i, isize dx, isize dy) constexpr -> T {
 		const isize sdx = casts::to_signed(i) + dy * casts::to_signed(cols) + dx;
 		const Eigen::Index index = casts::to_eigen(sdx);
 
-#ifdef IPTSD_CONFIG_FORCE_ACCESS_CHECKS
-		return in(index);
-#else
-		return in.coeff(index);
-#endif
+		if constexpr (common::buildopts::ForceAccessChecks) {
+			return in(index);
+		} else {
+			return in.coeff(index);
+		}
 	};
 
 	// processing...
@@ -57,7 +57,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 	{
 		// x = 0
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, 0, 0) * k(-1, -1); // extended
 			v += d(i, 0, 0) * k(0, -1);  // extended
@@ -77,7 +77,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 		// 0 < x < n
 		const auto limit = i + cols - 2;
 		while (i < limit) {
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, 0) * k(-1, -1); // extended
 			v += d(i, 0, 0) * k(0, -1);   // extended
@@ -96,7 +96,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 
 		// x = n - 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, 0) * k(-1, -1); // extended
 			v += d(i, 0, 0) * k(0, -1);   // extended
@@ -118,7 +118,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 	while (i < cols * (rows - 1)) {
 		// x = 0
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, 0, -1) * k(-1, -1); // extended
 			v += d(i, 0, -1) * k(0, -1);
@@ -138,7 +138,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 		// 0 < x < n
 		const auto limit = i + cols - 2;
 		while (i < limit) {
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, -1) * k(-1, -1);
 			v += d(i, 0, -1) * k(0, -1);
@@ -157,7 +157,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 
 		// x = n - 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, -1) * k(-1, -1);
 			v += d(i, 0, -1) * k(0, -1);
@@ -179,7 +179,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 	{
 		// x = 0
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, 0, -1) * k(-1, -1); // extended
 			v += d(i, 0, -1) * k(0, -1);
@@ -199,7 +199,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 		// 1 < x < n - 2
 		const auto limit = i + cols - 2;
 		while (i < limit) {
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, -1) * k(-1, -1);
 			v += d(i, 0, -1) * k(0, -1);
@@ -218,7 +218,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 
 		// x = n - 1
 		{
-			auto v = Zero<T>();
+			auto v = casts::to<T>(0);
 
 			v += d(i, -1, -1) * k(-1, -1);
 			v += d(i, 0, -1) * k(0, -1);

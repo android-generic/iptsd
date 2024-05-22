@@ -17,7 +17,6 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
-#include <ratio>
 #include <string>
 
 namespace iptsd::apps::perf {
@@ -61,19 +60,19 @@ int run(const int argc, const char **argv)
 	for (usize i = 0; i < runs; i++) {
 		should_stop = perf.run();
 
-		Perf &app = perf.application();
+		Perf &papp = perf.application();
 
-		total += app.total;
-		total_of_squares += app.total_of_squares;
-		count += app.count;
+		total += papp.total;
+		total_of_squares += papp.total_of_squares;
+		count += papp.count;
 
-		min = std::min(min, app.min);
-		max = std::max(max, app.max);
+		min = std::min(min, papp.min);
+		max = std::max(max, papp.max);
 
 		if (should_stop)
 			break;
 
-		app.reset();
+		papp.reset();
 	}
 
 	const f64 n = casts::to<f64>(count);
@@ -102,7 +101,7 @@ int main(const int argc, const char **argv)
 
 	try {
 		return iptsd::apps::perf::run(argc, argv);
-	} catch (std::exception &e) {
+	} catch (const std::exception &e) {
 		spdlog::error(e.what());
 		return EXIT_FAILURE;
 	}

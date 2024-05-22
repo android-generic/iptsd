@@ -6,8 +6,10 @@
 #include "config.hpp"
 #include "device.hpp"
 #include "dft.hpp"
+#include "errors.hpp"
 
 #include <common/casts.hpp>
+#include <common/error.hpp>
 #include <common/types.hpp>
 #include <contacts/finder.hpp>
 #include <ipts/data.hpp>
@@ -16,7 +18,6 @@
 #include <spdlog/spdlog.h>
 
 #include <functional>
-#include <stdexcept>
 #include <vector>
 
 namespace iptsd::core {
@@ -89,47 +90,21 @@ protected:
 
 public:
 	Application(const Config &config,
-		    const DeviceInfo &info,
-		    std::optional<const ipts::Metadata> metadata)
-		: m_config {config}
-		, m_info {info}
-		, m_metadata {metadata}
-		, m_finder {config.contacts()}
-		, m_dft {config, metadata}
+	            const DeviceInfo &info,
+	            const std::optional<const ipts::Metadata> &metadata)
+		: m_config {config},
+		  m_info {info},
+		  m_metadata {metadata},
+		  m_finder {config.contacts()},
+		  m_dft {config, metadata}
 	{
 		if (m_config.width == 0 || m_config.height == 0)
-			throw std::runtime_error {"Invalid config: The screen size is 0!"};
-
-		if (metadata.has_value()) {
-			const auto &u = metadata->unknown.unknown;
-
-			const u32 rows = metadata->size.rows;
-			const u32 cols = metadata->size.columns;
-
-			const u32 width = metadata->size.width;
-			const u32 height = metadata->size.height;
-
-			const f32 xx = metadata->transform.xx;
-			const f32 yx = metadata->transform.yx;
-			const f32 tx = metadata->transform.tx;
-			const f32 xy = metadata->transform.xy;
-			const f32 yy = metadata->transform.yy;
-			const f32 ty = metadata->transform.ty;
-
-			spdlog::info("Metadata:");
-			spdlog::info("rows={}, columns={}", rows, cols);
-			spdlog::info("width={}, height={}", width, height);
-			spdlog::info("transform=[{},{},{},{},{},{}]", xx, yx, tx, xy, yy, ty);
-			spdlog::info(
-				"unknown={}, [{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}]",
-				metadata->unknown_byte, u[0], u[1], u[2], u[3], u[4], u[5], u[6],
-				u[7], u[8], u[9], u[10], u[11], u[12], u[13], u[14], u[15]);
-		}
+			throw common::Error<Error::InvalidScreenSize> {};
 
 		m_parser.on_heatmap = [&](const auto &data) { this->process_heatmap(data); };
 		m_parser.on_stylus = [&](const auto &data) { this->process_stylus(data); };
 		m_parser.on_dft = [&](const auto &data) { this->process_dft(data); };
-	};
+	}
 
 	virtual ~Application() = default;
 
@@ -184,24 +159,24 @@ private:
 	 */
 	void process_heatmap(const ipts::Heatmap &data)
 	{
-		const Eigen::Index rows = casts::to_eigen(data.dim.height);
-		const Eigen::Index cols = casts::to_eigen(data.dim.width);
+		const Eigen::Index rows = casts::to_eigen(data.rows);
+		const Eigen::Index cols = casts::to_eigen(data.columns);
 
 		if (rows == 0 || cols == 0)
 			return;
 
 		// Make sure the heatmap buffer has the right size
 		if (m_heatmap.rows() != rows || m_heatmap.cols() != cols)
-			m_heatmap.conservativeResize(data.dim.height, data.dim.width);
+			m_heatmap.conservativeResize(rows, cols);
 
 		// Map the buffer to an Eigen container
 		const Eigen::Map<const Image<u8>> mapped {data.data.data(), rows, cols};
 
-		const auto z_min = casts::to<f64>(data.dim.z_min);
-		const auto z_max = casts::to<f64>(data.dim.z_max);
+		const auto min = casts::to<f64>(data.min);
+		const auto max = casts::to<f64>(data.max);
 
 		// Normalize the heatmap to range [0, 1]
-		const auto norm = (mapped.cast<f64>() - z_min) / (z_max - z_min);
+		const auto norm = (mapped.cast<f64>() - min) / (max - min);
 
 		// IPTS sends inverted heatmaps
 		m_heatmap = 1.0 - norm;

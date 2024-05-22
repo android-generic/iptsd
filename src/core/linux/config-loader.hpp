@@ -3,23 +3,21 @@
 #ifndef IPTSD_CORE_LINUX_CONFIG_LOADER_HPP
 #define IPTSD_CORE_LINUX_CONFIG_LOADER_HPP
 
-#ifdef __ANDROID__
-#include <android_configure.h>
-#else
-#include "configure.h"
-#endif
+#include "errors.hpp"
 
+#include <common/buildopts.hpp>
 #include <common/casts.hpp>
+#include <common/error.hpp>
 #include <common/types.hpp>
 #include <core/generic/config.hpp>
 #include <core/generic/device.hpp>
 
 #include <INIReader.h>
 #include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 #include <filesystem>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <type_traits>
 
@@ -30,20 +28,20 @@ private:
 	Config m_config {};
 	DeviceInfo m_info;
 
+	bool m_loaded_config = false;
+
 public:
-	ConfigLoader(const DeviceInfo &info, std::optional<const ipts::Metadata> metadata)
+	ConfigLoader(const DeviceInfo &info, const std::optional<const ipts::Metadata> &metadata)
 		: m_info {info}
 	{
-		namespace filesystem = std::filesystem;
-
 		if (metadata.has_value()) {
-			m_config.width = casts::to<f64>(metadata->size.width) / 1e3;
-			m_config.height = casts::to<f64>(metadata->size.height) / 1e3;
+			m_config.width = casts::to<f64>(metadata->dimensions.width) / 1e3;
+			m_config.height = casts::to<f64>(metadata->dimensions.height) / 1e3;
 			m_config.invert_x = metadata->transform.xx < 0;
 			m_config.invert_y = metadata->transform.yy < 0;
 		}
 
-		this->load_dir(IPTSD_PRESET_DIR, true);
+		this->load_dir(common::buildopts::PresetDir, true);
 		this->load_dir("./etc/presets", true);
 
 		/*
@@ -57,10 +55,13 @@ public:
 			return;
 		}
 
-		if (filesystem::exists(IPTSD_CONFIG_FILE))
-			this->load_file(IPTSD_CONFIG_FILE);
+		if (std::filesystem::exists(common::buildopts::ConfigFile))
+			this->load_file(common::buildopts::ConfigFile);
 
-		this->load_dir(IPTSD_CONFIG_DIR, false);
+		this->load_dir(common::buildopts::ConfigDir, false);
+
+		if (!m_loaded_config)
+			spdlog::info("No config file loaded, using default values.");
 	}
 
 	/*!
@@ -80,14 +81,12 @@ private:
 	 * @param[in] path The path to the directory.
 	 * @param[in] check_device If true, check if the config is meant for the current device.
 	 */
-	void load_dir(const std::string &path, const bool check_device)
+	void load_dir(const std::filesystem::path &path, const bool check_device)
 	{
-		namespace filesystem = std::filesystem;
-
-		if (!filesystem::exists(path))
+		if (!std::filesystem::exists(path))
 			return;
 
-		for (const filesystem::directory_entry &p : filesystem::directory_iterator(path)) {
+		for (const auto &p : std::filesystem::directory_iterator(path)) {
 			if (!p.is_regular_file())
 				continue;
 
@@ -111,14 +110,14 @@ private:
 	 *
 	 * @param[in] path The path to the config file.
 	 * @param[out] vendor The vendor ID the config is targeting.
-	 * @param[out] vendor The product ID the config is targeting.
+	 * @param[out] product The product ID the config is targeting.
 	 */
-	void load_device(const std::string &path, u16 &vendor, u16 &product)
+	void load_device(const std::filesystem::path &path, u16 &vendor, u16 &product) const
 	{
 		const INIReader ini {path};
 
 		if (ini.ParseError() != 0)
-			throw std::runtime_error(fmt::format("Failed to parse {}", path));
+			throw common::Error<Error::ParsingFailed> {path.c_str()};
 
 		vendor = 0;
 		product = 0;
@@ -132,12 +131,14 @@ private:
 	 *
 	 * @param[in] path The file to load and parse.
 	 */
-	void load_file(const std::string &path)
+	void load_file(const std::filesystem::path &path)
 	{
+		spdlog::info("Loading config {}.", path.c_str());
+
 		const INIReader ini {path};
 
 		if (ini.ParseError() != 0)
-			throw std::runtime_error(fmt::format("Failed to parse {}", path));
+			throw common::Error<Error::ParsingFailed> {path.c_str()};
 
 		// clang-format off
 
@@ -176,12 +177,15 @@ private:
 		this->get(ini, "DFT", "FreqMinMag", m_config.dft_freq_min_mag);
 		this->get(ini, "DFT", "TiltMinMag", m_config.dft_tilt_min_mag);
 		this->get(ini, "DFT", "TiltDistance", m_config.dft_tilt_distance);
+		this->get(ini, "DFT", "Mpp2ContactMinMag", m_config.dft_mpp2_contact_min_mag);
+		this->get(ini, "DFT", "Mpp2ButtonMinMag", m_config.dft_mpp2_button_min_mag);
 
 		// Legacy options that are kept for compatibility
 		this->get(ini, "DFT", "TipDistance", m_config.stylus_tip_distance);
 		this->get(ini, "Contacts", "SizeThreshold", m_config.contacts_size_thresh_max);
 
 		// clang-format on
+		m_loaded_config = true;
 	}
 
 	/*!
@@ -194,9 +198,9 @@ private:
 	 */
 	template <class T>
 	void get(const INIReader &ini,
-		 const std::string &section,
-		 const std::string &name,
-		 T &value) const
+	         const std::string &section,
+	         const std::string &name,
+	         T &value) const
 	{
 		if constexpr (std::is_same_v<T, bool>)
 			value = ini.GetBoolean(section, name, value);
@@ -207,7 +211,7 @@ private:
 		else if constexpr (std::is_same_v<T, std::string>)
 			value = ini.GetString(section, name, value);
 		else
-			throw std::runtime_error("Loading this type is not implemented!");
+			throw common::Error<Error::ParsingTypeNotImplemented> {typeid(T).name()};
 	}
 };
 

@@ -11,16 +11,12 @@
 #include <hid/parser.hpp>
 #include <hid/report.hpp>
 #include <ipts/parser.hpp>
-#include <ipts/protocol.hpp>
 
 #include <gsl/gsl>
 
 #include <linux/hidraw.h>
 
-#include <algorithm>
 #include <filesystem>
-#include <optional>
-#include <set>
 #include <vector>
 
 namespace iptsd::core::linux {
@@ -28,6 +24,7 @@ namespace iptsd::core::linux {
 class HidrawDevice : public hid::Device {
 private:
 	int m_fd = -1;
+	std::filesystem::path m_path {};
 
 	struct hidraw_devinfo m_devinfo {};
 	struct hidraw_report_descriptor m_desc {};
@@ -35,7 +32,9 @@ private:
 	std::vector<hid::Report> m_reports {};
 
 public:
-	HidrawDevice(const std::filesystem::path &path) : m_fd {syscalls::open(path, O_RDWR)}
+	HidrawDevice(const std::filesystem::path &path)
+		: m_fd {syscalls::open(path, O_RDWR)},
+		  m_path {path}
 	{
 		u32 desc_size = 0;
 
@@ -52,9 +51,17 @@ public:
 	{
 		try {
 			syscalls::close(m_fd);
-		} catch (std::exception &) {
+		} catch (const std::exception & /* unused */) {
 			// ignored
 		}
+	}
+
+	/*!
+	 * The "name", aka. the path of the hidraw device node.
+	 */
+	std::string_view name() override
+	{
+		return m_path.c_str();
 	}
 
 	/*!
