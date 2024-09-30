@@ -91,12 +91,22 @@ LOCAL_POST_INSTALL_CMD := $(hide) mkdir -p $(TARGET_OUT_VENDOR)/etc/ipts; \
 LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_EXECUTABLE)
 
+#copy iptsd-foreach
+include $(CLEAR_VARS)
+LOCAL_MODULE := iptsd-foreach
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_SRC_FILES := etc/scripts/iptsd-foreach
+include $(BUILD_PREBUILT)
+
 #copy iptsd-find-hidraw
 include $(CLEAR_VARS)
 LOCAL_MODULE := iptsd-find-hidraw
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_PROPRIETARY_MODULE := true
-LOCAL_SRC_FILES := etc/iptsd-find-hidraw
+LOCAL_REQUIRED_MODULES := iptsd-foreach
+LOCAL_SRC_FILES := etc/scripts/iptsd-find-hidraw
 
 include $(BUILD_PREBUILT)
