@@ -14,8 +14,8 @@ IPTSD_CPPFLAGS += -march=x86-64-v3
 endif
 
 IPTSD_SHARED_LIBRARIES := libinih-cpp libspdlog
-IPTSD_STATIC_LIBRARIES := libc++fs fmtlib9
-IPTSD_HEADER_LIBRARIES := libeigen inih_headers cli11 fmtlib9_headers\
+IPTSD_STATIC_LIBRARIES := libc++fs fmtlib11
+IPTSD_HEADER_LIBRARIES := libeigen inih_headers cli11 fmtlib11_headers \
 						microsoft-gsl libinih-cpp_headers
 
 #build iptsd-calibrate
