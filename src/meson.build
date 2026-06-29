@@ -91,7 +91,6 @@ spdlog = dependency(
 	fallback: ['spdlog', 'spdlog_dep'],
 	default_options: dependency_options + [
 		'tests=disabled',
-		'external_fmt=enabled',
 		'std_format=disabled',
 	],
 )

@@ -49,6 +49,18 @@ public:
 	 * the recursive cluster search will stop once it reaches it.
 	 */
 	T deactivation_threshold = casts::to<T>(20);
+
+	/*
+	 * Radius in pixels around each maxima to darken (excluding the maxima pixel itself).
+	 * Setting this value to zero disables local maxima surrounding pixel suppression.
+	 */
+	usize peak_suppression_radius = 0;
+
+	/*
+	 * The factor in which to darken surrounding pixels when using peak suppression.
+	 * Multiplies neighbors by this factor (e.g., 0.5 = reduce brightness by 50%).
+	 */
+	T peak_suppression_factor = casts::to<T>(0);
 };
 
 } // namespace iptsd::contacts::detection

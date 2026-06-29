@@ -174,7 +174,8 @@ private:
 				xt *= m_config.width / m_config.dft_tilt_distance;
 				yt *= m_config.height / m_config.dft_tilt_distance;
 
-				const f64 azm = std::fmod(std::atan2(-yt, xt) + 2 * M_PI, 2 * M_PI);
+				const f64 azm =
+					std::fmod(std::atan2(-yt, xt) + (2 * M_PI), 2 * M_PI);
 				const f64 alt = std::asin(std::min(1.0, std::hypot(xt, yt)));
 
 				m_stylus.azimuth = azm;
@@ -214,7 +215,7 @@ private:
 			                 dft.y[0].imag[ipts::protocol::dft::NUM_COMPONENTS / 2];
 
 			// same phase as position signal = eraser, opposite phase = button
-			const i32 val = m_real * real + m_imag * imag;
+			const i32 val = (m_real * real) + (m_imag * imag);
 
 			button = val < 0;
 			rubber = val > 0;
@@ -340,9 +341,9 @@ private:
 		const f64 cos = row.imag.at(maxi) / amp;
 
 		std::array<f64, 3> x = {
-			sin * row.real.at(maxi - 1) + cos * row.imag.at(maxi - 1),
+			(sin * row.real.at(maxi - 1)) + (cos * row.imag.at(maxi - 1)),
 			amp,
-			sin * row.real.at(maxi + 1) + cos * row.imag.at(maxi + 1),
+			(sin * row.real.at(maxi + 1)) + (cos * row.imag.at(maxi + 1)),
 		};
 
 		// convert the amplitudes into something we can fit a parabola to
@@ -414,11 +415,11 @@ private:
 
 		// interpolate using Eric Jacobsen's modified quadratic estimator
 		const i32 ra = real[0] - real[2];
-		const i32 rb = 2 * real[1] - real[0] - real[2];
+		const i32 rb = (2 * real[1]) - real[0] - real[2];
 		const i32 ia = imag[0] - imag[2];
-		const i32 ib = 2 * imag[1] - imag[0] - imag[2];
+		const i32 ib = (2 * imag[1]) - imag[0] - imag[2];
 
-		const f64 d = (ra * rb + ia * ib) / casts::to<f64>(rb * rb + ib * ib);
+		const f64 d = (ra * rb + ia * ib) / casts::to<f64>((rb * rb) + (ib * ib));
 
 		return (maxi + std::clamp(d, mind, maxd)) / (rows - 1);
 	}

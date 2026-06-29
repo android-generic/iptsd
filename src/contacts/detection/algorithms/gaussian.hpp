@@ -77,10 +77,10 @@ void assemble_system(Matrix6<T> &m,
 	const Point &bmax = b.max();
 
 	for (Eigen::Index iy = bmin.y(); iy <= bmax.y(); iy++) {
-		const T y = casts::to<T>(iy) * scale.y() - 1;
+		const T y = (casts::to<T>(iy) * scale.y()) - 1;
 
 		for (Eigen::Index ix = bmin.x(); ix <= bmax.x(); ix++) {
-			const T x = casts::to<T>(ix) * scale.x() - 1;
+			const T x = (casts::to<T>(ix) * scale.x()) - 1;
 
 			const T d =
 				w(iy - bmin.y(), ix - bmin.x()) * gsl::narrow_cast<T>(data(iy, ix));
@@ -154,7 +154,7 @@ bool extract_params(const Vector6<T> &chi, T &scale, Vector2<T> &mean, Matrix2<T
 	mean.y() = (prec(0, 0) * chi[4] - prec(0, 1) * chi[3]) / d;
 
 	const T vtmv = mean.transpose() * prec * mean;
-	scale = std::exp(chi[5] + vtmv / casts::to<T>(2));
+	scale = std::exp(chi[5] + (vtmv / casts::to<T>(2)));
 
 	return true;
 }
@@ -184,10 +184,10 @@ void update_weight_maps(std::vector<Parameters<typename DenseBase<Derived>::Scal
 		const Point bmax = p.bounds.max();
 
 		for (Eigen::Index iy = bmin.y(); iy <= bmax.y(); iy++) {
-			const T y = casts::to<T>(iy) * scale.y() - 1;
+			const T y = (casts::to<T>(iy) * scale.y()) - 1;
 
 			for (Eigen::Index ix = bmin.x(); ix <= bmax.x(); ix++) {
-				const T x = casts::to<T>(ix) * scale.x() - 1;
+				const T x = (casts::to<T>(ix) * scale.x()) - 1;
 
 				const T v = p.scale * gaussian_like({x, y}, p.mean, p.prec);
 				p.weights(iy - bmin.y(), ix - bmin.x()) = v;
@@ -294,20 +294,20 @@ bool ge_solve(Matrix6<T> a, Vector6<T> b, Vector6<T> &x)
 	x[5] = b[5];
 	x[5] /= a(5, 5);
 
-	x[4] = b[4] - a(5, 4) * x[5];
+	x[4] = b[4] - (a(5, 4) * x[5]);
 	x[4] /= a(4, 4);
 
-	x[3] = b[3] - a(5, 3) * x[5] - a(4, 3) * x[4];
+	x[3] = b[3] - (a(5, 3) * x[5]) - (a(4, 3) * x[4]);
 	x[3] /= a(3, 3);
 
-	x[2] = b[2] - a(5, 2) * x[5] - a(4, 2) * x[4] - a(3, 2) * x[3];
+	x[2] = b[2] - (a(5, 2) * x[5]) - (a(4, 2) * x[4]) - (a(3, 2) * x[3]);
 	x[2] /= a(2, 2);
 
-	x[1] = b[1] - a(5, 1) * x[5] - a(4, 1) * x[4] - a(3, 1) * x[3] - a(2, 1) * x[2];
+	x[1] = b[1] - (a(5, 1) * x[5]) - (a(4, 1) * x[4]) - (a(3, 1) * x[3]) - (a(2, 1) * x[2]);
 	x[1] /= a(1, 1);
 
-	x[0] = b[0] - a(5, 0) * x[5] - a(4, 0) * x[4] - a(3, 0) * x[3] - a(2, 0) * x[2] -
-	       a(1, 0) * x[1];
+	x[0] = b[0] - (a(5, 0) * x[5]) - (a(4, 0) * x[4]) - (a(3, 0) * x[3]) - (a(2, 0) * x[2]) -
+	       (a(1, 0) * x[1]);
 	x[0] /= a(0, 0);
 
 	return true;

@@ -70,7 +70,7 @@ public:
 		info.meta = m_ipts.metadata();
 
 		const ConfigLoader loader {info};
-		m_application.emplace(loader.config(), info, args...);
+		m_application.emplace(loader.config(), info, std::move(args)...);
 
 		m_buffer.resize(m_ipts.buffer_size());
 

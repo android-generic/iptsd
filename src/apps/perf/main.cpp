@@ -78,7 +78,7 @@ int run(const int argc, const char **argv)
 
 	const f64 n = casts::to<f64>(count);
 	const f64 mean = casts::to<f64>(total) / n;
-	const f64 stddev = std::sqrt(casts::to<f64>(total_of_squares) / n - mean * mean);
+	const f64 stddev = std::sqrt((casts::to<f64>(total_of_squares) / n) - (mean * mean));
 
 	spdlog::info("Ran {} times", count);
 	spdlog::info("Total: {}μs", total);

@@ -20,7 +20,7 @@ install)
 
 	apt-get -y update
 	apt-get -y install build-essential fakeroot debhelper \
-		dpkg-sig git devscripts
+		debsigs git devscripts
 
 	# Install package dependencies
 	mk-build-deps -ir -t "apt-get -y -t $VERSION_CODENAME-backports"
@@ -39,7 +39,7 @@ sign)
 	export GPG_TTY=$(tty)
 
 	# sign package
-	dpkg-sig -g "--batch --no-tty" --sign builder -k $GPG_KEY_ID ../*.deb
+	debsigs --sign=origin -k $GPG_KEY_ID ../*.deb
 	;;
 release)
 	mkdir -p release

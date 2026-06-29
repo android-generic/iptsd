@@ -50,6 +50,8 @@ public:
 	f64 contacts_size_max = 2;
 	f64 contacts_aspect_min = 1;
 	f64 contacts_aspect_max = 2.5;
+	usize contacts_peak_suppression_radius = 0;
+	f64 contacts_peak_suppression_factor = 0;
 
 	// [Stylus]
 	bool stylus_disable = false;
@@ -99,6 +101,9 @@ public:
 
 		config.detection.neutral_value_offset = nval_offset / 255.0;
 		config.detection.neutral_value_backoff = 16; // TODO: config option
+
+		config.detection.peak_suppression_factor = this->contacts_peak_suppression_factor;
+		config.detection.peak_suppression_radius = this->contacts_peak_suppression_radius;
 
 		const f64 diagonal = std::hypot(this->width, this->height);
 

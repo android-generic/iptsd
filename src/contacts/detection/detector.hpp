@@ -12,6 +12,7 @@
 #include "algorithms/maximas.hpp"
 #include "algorithms/neutral.hpp"
 #include "algorithms/overlaps.hpp"
+#include "algorithms/suppression.hpp"
 #include "config.hpp"
 
 #include <common/casts.hpp>
@@ -42,6 +43,9 @@ private:
 
 	// The blurred heatmap.
 	Image<T> m_img_blurred {};
+
+	// A copy of the blurred heatmap used for cluster spanning when suppression is enabled.
+	Image<T> m_img_span {};
 
 	// The kernel that is used for blurring.
 	Matrix3<T> m_kernel_blur = kernels::gaussian<T, 3, 3>(gsl::narrow_cast<T>(0.75));
@@ -97,6 +101,7 @@ public:
 		if (brows != rows || bcols != cols) {
 			m_img_neutral.conservativeResize(rows, cols);
 			m_img_blurred.conservativeResize(rows, cols);
+			m_img_span.conservativeResize(rows, cols);
 			m_fitting_temp.conservativeResize(rows, cols);
 
 			if (m_config.normalize)
@@ -126,12 +131,29 @@ public:
 		const T athresh = m_config.activation_threshold;
 		const T dthresh = m_config.deactivation_threshold;
 
-		// Search for local maximas
+		// Find local maximas on the original blurred heatmap (stable maxima positions)
 		maximas::find(m_img_blurred, athresh, m_maximas);
 
-		// Iterate over the maximas and start building clusters
+		// Create a suppressed copy used only for cluster spanning
+		const Image<T> *span_src = &m_img_blurred;
+
+		const Eigen::Index suppression_radius =
+			casts::to_eigen(m_config.peak_suppression_radius);
+		if (suppression_radius >= 1) {
+			const T suppression_factor = m_config.peak_suppression_factor;
+			suppression::darken_around_maximas(m_img_blurred,
+			                                   m_maximas,
+			                                   suppression_radius,
+			                                   suppression_factor,
+			                                   m_img_span);
+
+			span_src = &m_img_span;
+		}
+
+		// Iterate over the maximas and start building clusters (on suppressed image if
+		// enabled)
 		for (const Point &point : m_maximas) {
-			Box cluster = cluster::span(m_img_blurred, point, athresh, dthresh);
+			Box cluster = cluster::span(*span_src, point, athresh, dthresh);
 
 			if (cluster.isEmpty())
 				continue;

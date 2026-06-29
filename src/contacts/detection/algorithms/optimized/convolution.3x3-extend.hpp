@@ -40,7 +40,7 @@ inline void run_3x3(const DenseBase<DerivedData> &in,
 	};
 
 	const auto d = [&](Eigen::Index i, isize dx, isize dy) constexpr -> T {
-		const isize sdx = casts::to_signed(i) + dy * casts::to_signed(cols) + dx;
+		const isize sdx = casts::to_signed(i) + (dy * casts::to_signed(cols)) + dx;
 		const Eigen::Index index = casts::to_eigen(sdx);
 
 		if constexpr (common::buildopts::ForceAccessChecks) {
