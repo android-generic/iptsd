@@ -1,0 +1,108 @@
+// Copyright (C) 2026 BlissLabs
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program; if not, write to the Free Software Foundation, Inc.,
+// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+prebuilt_etc {
+    name: "iptsd.conf",
+    src: "iptsd.conf",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-book-1.conf",
+    src: "presets/surface-book-1.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-book-2-13.conf",
+    src: "presets/surface-book-2-13.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-book-2-15.conf",
+    src: "presets/surface-book-2-15.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-laptop-1+2.conf",
+    src: "presets/surface-laptop-1+2.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-laptop-studio-2.conf",
+    src: "presets/surface-laptop-studio-2.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-pro-4-a.conf",
+    src: "presets/surface-pro-4-a.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-pro-4-b.conf",
+    src: "presets/surface-pro-4-b.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-pro-4-c.conf",
+    src: "presets/surface-pro-4-c.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-pro-5.conf",
+    src: "presets/surface-pro-5.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+prebuilt_etc {
+    name: "surface-pro-6.conf",
+    src: "presets/surface-pro-6.conf",
+    sub_dir: "ipts",
+    proprietary: true,
+}
+
+phony {
+    name: "iptsd-presets",
+    required: [
+        "iptsd.conf",
+        "surface-book-1.conf",
+        "surface-book-2-13.conf",
+        "surface-book-2-15.conf",
+        "surface-laptop-1+2.conf",
+        "surface-laptop-studio-2.conf",
+        "surface-pro-4-a.conf",
+        "surface-pro-4-b.conf",
+        "surface-pro-4-c.conf",
+        "surface-pro-5.conf",
+        "surface-pro-6.conf",
+    ],
+}

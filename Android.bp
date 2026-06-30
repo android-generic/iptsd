@@ -1,0 +1,112 @@
+// Copyright (C) 2026 BlissLabs
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program; if not, write to the Free Software Foundation, Inc.,
+// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+cc_defaults {
+    name: "iptsd_defaults",
+    cpp_std: "c++17",
+    rtti: true,
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-O3",
+        "-Wmissing-include-dirs",
+        "-Winit-self",
+        "-Wimplicit-fallthrough",
+        "-Wdouble-promotion",
+        "-Wconversion",
+        "-Wno-error=conversion",
+        "-Wno-error=sign-conversion",
+        "-Wno-sign-conversion",
+        "-Wno-error=c99-extensions",
+        "-Wno-c99-extensions",
+        "-DSPDLOG_FMT_EXTERNAL",
+    ],
+    cppflags: [
+        "-fexceptions",
+    ],
+    arch: {
+        x86_64: {
+            cflags: ["-march=core-avx2"],
+        },
+    },
+    shared_libs: [
+        "libinih-cpp",
+        "libspdlog",
+    ],
+    static_libs: [
+        "libc++fs",
+        "fmtlib11",
+    ],
+    header_libs: [
+        "libeigen",
+        "cli11",
+        "fmtlib11_headers",
+        "microsoft-gsl",
+    ],
+    local_include_dirs: [
+        "src",
+    ],
+    proprietary: true,
+}
+
+cc_binary {
+    name: "iptsd-calibrate",
+    defaults: ["iptsd_defaults"],
+    srcs: ["src/apps/calibrate/**/*.cpp"],
+}
+
+cc_binary {
+    name: "iptsd-check-device",
+    defaults: ["iptsd_defaults"],
+    srcs: ["src/apps/check-device/**/*.cpp"],
+}
+
+cc_binary {
+    name: "iptsd-dump",
+    defaults: ["iptsd_defaults"],
+    srcs: ["src/apps/dump/**/*.cpp"],
+}
+
+cc_binary {
+    name: "iptsd-perf",
+    defaults: ["iptsd_defaults"],
+    srcs: ["src/apps/perf/**/*.cpp"],
+}
+
+cc_binary {
+    name: "iptsd",
+    defaults: ["iptsd_defaults"],
+    srcs: ["src/apps/daemon/**/*.cpp"],
+    required: [
+        "iptsd-presets",
+    ],
+}
+
+sh_binary {
+    name: "iptsd-find",
+    src: "etc/scripts/iptsd-find",
+    proprietary: true,
+}
+
+sh_binary {
+    name: "iptsd-find-hidraw",
+    src: "etc/scripts/iptsd-find-hidraw",
+    required: [
+        "iptsd-find",
+    ],
+    proprietary: true,
+}
