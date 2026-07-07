@@ -1,0 +1,3 @@
+# Property contexts for iptsd (Treble-compliant vendor properties)
+vendor.iptsd.           u:object_r:iptsd_prop:s0
+persist.vendor.iptsd.   u:object_r:iptsd_prop:s0

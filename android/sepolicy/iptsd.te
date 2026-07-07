@@ -1,0 +1,63 @@
+# SELinux policy for iptsd and iptsd-runner
+#
+# iptsd-runner is a service that scans for IPTS hidraw devices,
+# spawns iptsd instances per device, and monitors them.
+# iptsd is the per-device daemon that reads hidraw and creates
+# uinput virtual input devices.
+#
+# Both run as root from vendor init.
+
+# Define the iptsd domain
+type iptsd, domain;
+type iptsd_exec, exec_type, vendor_file_type, file_type;
+
+# Allow init to transition into the iptsd domain
+init_daemon_domain(iptsd)
+
+# Define the hidraw device type
+type hidraw_device, dev_type;
+
+# Define a vendor property type for iptsd
+vendor_internal_prop(iptsd_prop)
+
+# ---- iptsd-runner needs ----
+
+# Read /dev/ directory to scan for hidraw devices
+allow iptsd device:dir r_dir_perms;
+
+# Open and ioctl hidraw devices for IPTS detection (probe then close)
+allow iptsd hidraw_device:chr_file { open read write ioctl getattr };
+
+# Fork+exec iptsd child processes
+allow iptsd iptsd_exec:file { read open execute execute_no_trans getattr };
+
+# Signal management for child processes (SIGTERM, SIGKILL)
+allow iptsd self:process { fork signal sigchld };
+allow iptsd iptsd:process { signal sigkill };
+
+# ---- iptsd daemon (child) needs ----
+
+# Open and write to uinput to create virtual input devices
+allow iptsd uhid_device:chr_file { open read write ioctl getattr };
+
+# Read vendor config and preset files
+allow iptsd vendor_configs_file:dir r_dir_perms;
+allow iptsd vendor_configs_file:file r_file_perms;
+
+# Read data partition config (optional user overrides)
+allow iptsd vendor_data_file:dir r_dir_perms;
+allow iptsd vendor_data_file:file r_file_perms;
+
+# ---- Resume handling ----
+
+# Set/get vendor.iptsd.* and persist.vendor.iptsd.* properties
+set_prop(iptsd, iptsd_prop)
+
+# Read /proc/modules to detect which IPTS modules (ipts/ithc) are loaded
+allow iptsd proc_modules:file r_file_perms;
+
+# Logging
+allow iptsd self:unix_dgram_socket { create connect write };
+
+# /proc access (needed by some libc functions)
+allow iptsd proc:file r_file_perms;

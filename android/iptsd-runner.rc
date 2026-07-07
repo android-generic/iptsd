@@ -1,0 +1,40 @@
+service iptsd-runner /vendor/bin/iptsd-runner
+    class main
+    user root
+    group root input uhid
+    oneshot
+    disabled
+    seclabel u:r:iptsd:s0
+    writepid /dev/cpuset/system-background/tasks
+
+# Reload IPTS kernel module(s) when requested by iptsd-runner on resume.
+#
+# This works around a driver bug where the ipts (or ithc) driver fails
+# to reinitialize after suspend ("Failed to set memory window").
+#
+# The runner detects resume via CLOCK_BOOTTIME and sets the property
+# to the name(s) of the module(s) to reload. This trigger runs the
+# modprobe in the vendor_modprobe SELinux domain.
+#
+# This workaround is guarded by persist.vendor.iptsd.reload_on_resume
+# (default 0). Set to 0 to disable once the driver bug is fixed upstream.
+
+# Reload ipts only (MEI-based, Surface Pro 4 through Surface Pro 7)
+on property:vendor.iptsd.reload_driver=ipts
+    exec - root root -- /vendor/bin/modprobe -r ipts
+    exec - root root -- /vendor/bin/modprobe ipts
+    setprop vendor.iptsd.reload_driver 0
+
+# Reload ithc only (PCI-based, Surface Pro 7+ and newer)
+on property:vendor.iptsd.reload_driver=ithc
+    exec - root root -- /vendor/bin/modprobe -r ithc
+    exec - root root -- /vendor/bin/modprobe ithc
+    setprop vendor.iptsd.reload_driver 0
+
+# Reload both modules (rare, but possible on hybrid hardware)
+on property:vendor.iptsd.reload_driver=ipts,ithc
+    exec - root root -- /vendor/bin/modprobe -r ipts
+    exec - root root -- /vendor/bin/modprobe -r ithc
+    exec - root root -- /vendor/bin/modprobe ipts
+    exec - root root -- /vendor/bin/modprobe ithc
+    setprop vendor.iptsd.reload_driver 0

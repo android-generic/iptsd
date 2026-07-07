@@ -1,0 +1,16 @@
+# SELinux file contexts for iptsd
+
+# iptsd-runner binary (the service manager)
+/(vendor|system/vendor)/bin/iptsd-runner        u:object_r:iptsd_exec:s0
+
+# iptsd binary (the per-device daemon)
+/(vendor|system/vendor)/bin/iptsd               u:object_r:iptsd_exec:s0
+
+# iptsd utility binaries
+/(vendor|system/vendor)/bin/iptsd-check-device  u:object_r:iptsd_exec:s0
+/(vendor|system/vendor)/bin/iptsd-calibrate     u:object_r:iptsd_exec:s0
+/(vendor|system/vendor)/bin/iptsd-dump          u:object_r:iptsd_exec:s0
+/(vendor|system/vendor)/bin/iptsd-perf          u:object_r:iptsd_exec:s0
+
+# hidraw device nodes (used by IPTS kernel drivers)
+/dev/hidraw[0-9]*               u:object_r:hidraw_device:s0
